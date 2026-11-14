@@ -150,6 +150,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import yos.music.player.ui.pages.isWideLayout
 import yos.music.player.ui.pages.SideBarWidth
 import yos.music.player.ui.pages.SideBar
+import yos.music.player.ui.pages.settings.SettingsPane
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.NavItem
 import yos.music.player.ui.widgets.basic.ShadowImageWithCache
@@ -477,39 +478,35 @@ class MainActivity : BaseActivity() {
                                             }
 
                                             composable(UI.Settings.Main) {
-                                                Settings(
-                                                    navController
-                                                )
+                                                SettingsPane(navController, UI.Settings.Main) { LibraryOverview(navController) }
                                             }
                                             composable(UI.Settings.LibraryOverview) {
-                                                LibraryOverview(navController)
+                                                SettingsPane(navController, UI.Settings.LibraryOverview) { LibraryOverview(navController) }
                                             }
                                             composable(UI.Settings.LyricGetter) {
-                                                LyricGetter(navController)
+                                                SettingsPane(navController, UI.Settings.LyricGetter) { LyricGetter(navController) }
                                             }
                                             composable(ExoplayerSetting) {
-                                                ExoPlayerSettings(navController)
+                                                SettingsPane(navController, UI.Settings.ExoplayerSetting) { ExoPlayerSettings(navController) }
                                             }
                                             composable(UI.Settings.EqualizerSetting) {
-                                                EqualizerSettings(navController)
+                                                SettingsPane(navController, UI.Settings.EqualizerSetting) { EqualizerSettings(navController) }
                                             }
                                             composable(UI.Settings.About) {
-                                                About(
-                                                    navController
-                                                )
+                                                SettingsPane(navController, UI.Settings.About) { About(navController) }
                                             }
                                             composable(UI.Settings.MediaCodec) {
-                                                MediaCodec(navController)
+                                                SettingsPane(navController, UI.Settings.MediaCodec) { MediaCodec(navController) }
                                             }
 
                                             composable(UI.Settings.LyricSetting) {
-                                                LyricSetting(navController)
+                                                SettingsPane(navController, UI.Settings.LyricSetting) { LyricSetting(navController) }
                                             }
                                             composable(UI.Settings.UserInterfaceSetting) {
-                                                UserInterfaceSetting(navController)
+                                                SettingsPane(navController, UI.Settings.UserInterfaceSetting) { UserInterfaceSetting(navController) }
                                             }
                                             composable(UI.Settings.NotificationSetting) {
-                                                NotificationSetting(navController)
+                                                SettingsPane(navController, UI.Settings.NotificationSetting) { NotificationSetting(navController) }
                                             }
                                         }
 

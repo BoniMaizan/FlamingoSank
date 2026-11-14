@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -121,9 +123,10 @@ fun LabelItem(
     title: String,
     desc: String? = null,
     superLink: Boolean = false,
+    selected: Boolean = false,
     onClick: (() -> Unit)?
 ) =
-    DefaultItem(enabled = enabled, title = title, titleHighLight = superLink, desc = desc, onClick = onClick) {
+    DefaultItem(enabled = enabled, title = title, titleHighLight = superLink, desc = desc, selected = selected, onClick = onClick) {
         if (!superLink) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_action_next), contentDescription = title,
@@ -171,12 +174,14 @@ fun DefaultItem(
     title: String,
     titleHighLight: Boolean = false,
     desc: String? = null,
+    selected: Boolean = false,
     onClick: (() -> Unit)?,
     backIcon: (@Composable () -> Unit)? = null
 ) {
     Row(
         Modifier
             .fillMaxWidth()
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent)
             .then(
                 if (onClick == null) Modifier else Modifier.clickable(enabled) {
                     onClick()

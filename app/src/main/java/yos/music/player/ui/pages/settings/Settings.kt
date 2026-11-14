@@ -27,18 +27,28 @@ import yos.music.player.data.libraries.MusicLibrary
 import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
+import yos.music.player.ui.pages.isWideLayout
 import yos.music.player.ui.widgets.basic.OptionDialog
 import yos.music.player.ui.widgets.basic.RoundColumn
 import yos.music.player.ui.widgets.basic.Title
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Settings(navController: NavController) =
+fun Settings(navController: NavController, selected: String? = null) =
     SettingBackground {
         val context = LocalContext.current
+        val wide = isWideLayout()
+        // Tablets: sub-pages replace each other next to this list instead of stacking up
+        val open: (String) -> Unit = { route ->
+            if (wide) navController.navigate(route) {
+                popUpTo(UI.Settings.Main)
+                launchSingleTop = true
+            } else navController.toUI(route)
+        }
         Title(title = stringResource(id = R.string.page_settings_title),
             onBack = {
-                navController.popBackStack()
+                // from the side list, leave Settings entirely rather than just the open sub-page
+                navController.popBackStack(UI.Settings.Main, inclusive = true)
             },
             content = {
                 item("settings") {
@@ -56,8 +66,8 @@ fun Settings(navController: NavController) =
                             )
 
                             Divider()
-                            LabelItem(title = stringResource(id = R.string.settings_library_overview)) {
-                                navController.toUI(UI.Settings.LibraryOverview)
+                            LabelItem(selected = selected == UI.Settings.LibraryOverview, title = stringResource(id = R.string.settings_library_overview)) {
+                                open(UI.Settings.LibraryOverview)
                             }
                         }
 
@@ -101,28 +111,28 @@ fun Settings(navController: NavController) =
                         GroupSpacer()
                         ListHeader(stringResource(id = R.string.settings_performance))
                         RoundColumn {
-                            LabelItem(title = stringResource(id = R.string.settings_performance_lyric_title)) {
-                                navController.toUI(UI.Settings.LyricSetting)
+                            LabelItem(selected = selected == UI.Settings.LyricSetting, title = stringResource(id = R.string.settings_performance_lyric_title)) {
+                                open(UI.Settings.LyricSetting)
                             }
                             Divider()
-                            LabelItem(title = stringResource(id = R.string.settings_performance_ui_title)) {
-                                navController.toUI(UI.Settings.UserInterfaceSetting)
+                            LabelItem(selected = selected == UI.Settings.UserInterfaceSetting, title = stringResource(id = R.string.settings_performance_ui_title)) {
+                                open(UI.Settings.UserInterfaceSetting)
                             }
                             Divider()
-                            LabelItem(title = stringResource(id = R.string.settings_performance_notification_title)) {
-                                navController.toUI(UI.Settings.NotificationSetting)
+                            LabelItem(selected = selected == UI.Settings.NotificationSetting, title = stringResource(id = R.string.settings_performance_notification_title)) {
+                                open(UI.Settings.NotificationSetting)
                             }
                         }
 
                         GroupSpacer()
                         ListHeader(stringResource(id = R.string.settings_audio))
                         RoundColumn {
-                            LabelItem(title = stringResource(id = R.string.settings_audio_exoplayer)) {
-                                navController.toUI(UI.Settings.ExoplayerSetting)
+                            LabelItem(selected = selected == UI.Settings.ExoplayerSetting, title = stringResource(id = R.string.settings_audio_exoplayer)) {
+                                open(UI.Settings.ExoplayerSetting)
                             }
                             Divider()
-                            LabelItem(title = stringResource(id = R.string.settings_audio_equalizer)) {
-                                navController.toUI(UI.Settings.EqualizerSetting)
+                            LabelItem(selected = selected == UI.Settings.EqualizerSetting, title = stringResource(id = R.string.settings_audio_equalizer)) {
+                                open(UI.Settings.EqualizerSetting)
                             }
                             Divider()
                             SwitchItem(
@@ -170,22 +180,22 @@ fun Settings(navController: NavController) =
                         GroupSpacer()
                         ListHeader(stringResource(id = R.string.settings_extend))
                         RoundColumn {
-                            LabelItem(
+                            LabelItem(selected = selected == UI.Settings.LyricGetter, 
                                 title = stringResource(id = R.string.settings_extend_statusbarlyric),
                                 // desc = stringResource(id = R.string.settings_extend_statusbarlyric_desc)
                             ) {
-                                navController.toUI(UI.Settings.LyricGetter)
+                                open(UI.Settings.LyricGetter)
                             }
                         }
 
                         GroupSpacer()
                         ListHeader(stringResource(id = R.string.settings_others))
                         RoundColumn {
-                            LabelItem(
+                            LabelItem(selected = selected == UI.Settings.About, 
                                 title = stringResource(id = R.string.settings_others_about),
                                 // desc = stringResource(id = R.string.settings_others_about_desc)
                             ) {
-                                navController.toUI(UI.Settings.About)
+                                open(UI.Settings.About)
                             }
                         }
                     }
