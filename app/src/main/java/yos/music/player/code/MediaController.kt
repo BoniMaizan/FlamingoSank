@@ -220,6 +220,8 @@ object MediaController {
                 mediaControl?.setMediaItems(itemList, index, position)
                 mediaControl?.prepare()
             }
+            // The item transition isn't always reported when restoring at startup: show the song now
+            refresh(music)
 
             println("prepare 调用切列表")
             if (!play && playingMusicList.value == null) {
@@ -259,6 +261,35 @@ object MediaController {
                 mediaControl?.seekToDefaultPosition(index)
                 mediaControl?.fadePlay()
             }
+        }
+    }
+
+    // Play Next / Add to Queue. A song already queued is moved, never duplicated (the queue list keys by song)
+    fun enqueue(music: YosMediaItem, next: Boolean) {
+        val controller = mediaControl ?: return
+        val list = playingMusicList.value.orEmpty()
+        if (list.isEmpty()) {
+            CoroutineScope(Dispatchers.IO).launch { prepare(music, listOf(music)) }
+            return
+        }
+        val current = controller.currentMediaItemIndex
+        val existing = list.indexOfFirst { it.uri == music.uri }
+        if (existing == current) return
+        val newList = list.toMutableList()
+        if (existing >= 0) {
+            newList.removeAt(existing)
+            val currentAfter = if (existing < current) current - 1 else current
+            val target = if (next) currentAfter + 1 else newList.size
+            newList.add(target, music)
+            controller.moveMediaItem(existing, target)
+        } else {
+            val target = if (next) current + 1 else newList.size
+            newList.add(target, music)
+            controller.addMediaItem(target, music.toMediaItem())
+        }
+        playingMusicList.value = newList
+        CoroutineScope(Dispatchers.IO).launch {
+            MusicLibrary.updatePlayList(PlayListV1(mainMusicList, newList))
         }
     }
 

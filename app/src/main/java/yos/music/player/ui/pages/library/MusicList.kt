@@ -1,6 +1,7 @@
 package yos.music.player.ui.pages.library
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,8 +24,9 @@ import yos.music.player.data.libraries.defaultTitle
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.ShadowImageWithCache
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun /*LazyItemScope.*/MusicList(music: YosMediaItem, itemClick: () -> Unit) {
+fun /*LazyItemScope.*/MusicList(music: YosMediaItem, onLongClick: (() -> Unit)? = null, itemClick: () -> Unit) {
     /*rememberSaveable(stateSaver = object : Saver<String?, Any> {
     override fun restore(value: Any): String? {
         return value as String?
@@ -96,9 +98,7 @@ LaunchedEffect(Unit) {
             /*.animateItem(fadeInSpec = null, fadeOutSpec = null)*/
             .height(64.dp)
             .fillMaxWidth()
-            .clickable {
-                itemClick()
-            }
+            .combinedClickable(onLongClick = onLongClick, onClick = itemClick)
             .padding(horizontal = 22.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

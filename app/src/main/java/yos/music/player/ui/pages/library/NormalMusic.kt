@@ -71,6 +71,8 @@ import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.data.libraries.SettingsLibrary.EnableDescending
 import yos.music.player.data.libraries.SettingsLibrary.SongSort
 import yos.music.player.data.libraries.YosMediaItem
+import yos.music.player.ui.pages.MoreMenu
+import yos.music.player.ui.toUI
 import yos.music.player.data.libraries.artistsList
 import yos.music.player.data.libraries.defaultArtists
 import yos.music.player.data.libraries.defaultTitle
@@ -156,6 +158,10 @@ fun NormalMusic(navController: NavController) {
             val scope = rememberCoroutineScope()
 
             val expanded = remember { mutableStateOf(false) }
+            val menuSong = remember { mutableStateOf<YosMediaItem?>(null) }
+            menuSong.value?.let { song ->
+                MoreMenu(song, { route -> navController.toUI(route) }, queueActions = true) { menuSong.value = null }
+            }
             val buttonPosition = remember { mutableStateOf(Offset.Zero) }
 
             Box(Modifier.fillMaxSize()) {
@@ -243,7 +249,8 @@ fun NormalMusic(navController: NavController) {
                         key = { _, music -> music }
                     ) { index, music ->
                         MusicList(
-                            music
+                            music,
+                            onLongClick = { menuSong.value = music }
                         ) {
                             scope.launch(Dispatchers.IO) {
                                 MediaController.prepare(

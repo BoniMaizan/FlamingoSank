@@ -1366,7 +1366,7 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?, onOpenPage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, onDismiss: () -> Unit) {
+fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, queueActions: Boolean = false, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -1391,11 +1391,20 @@ private fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, onDismis
             } else if (pickTimer.value) {
                 SleepTimerPicker { action -> closeThen(action) }
             } else {
+            if (queueActions && music.uri != MediaController.musicPlaying.value?.uri) {
+                SelectObjectItem(stringResource(id = R.string.song_menu_play_next), {
+                    closeThen { MediaController.enqueue(music, next = true) }
+                }) {}
+                SelectObjectItem(stringResource(id = R.string.song_menu_add_queue), {
+                    closeThen { MediaController.enqueue(music, next = false) }
+                }) {}
+            }
             SelectObjectItem(stringResource(id = R.string.nowplaying_more_add_playlist), {
                 pickPlaylist.value = true
             }) {}
             val stopAt = SleepTimer.stopAt.longValue
-            SelectObjectItem(
+            // The timer is about playback, not this song: only in the player's menu
+            if (!queueActions) SelectObjectItem(
                 when {
                     stopAt == SleepTimer.END_OF_SONG -> stringResource(id = R.string.nowplaying_more_sleep_timer_song)
                     stopAt > 0 -> stringResource(

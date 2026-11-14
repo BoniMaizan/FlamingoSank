@@ -104,10 +104,15 @@ class YosBasicApplication : Application() {
                                 }
                             }*/
 
-                            if (playStatusData.music != null) {
+                            val savedMusic = playStatusData.music
+                            // A saved queue can be empty or miss the saved song: fall back to that song alone
+                            val queue = playListData.playingMusicList
+                                ?.takeIf { list -> savedMusic != null && list.any { it.uri == savedMusic.uri } }
+                                ?: listOfNotNull(savedMusic)
+                            if (savedMusic != null) {
                                 yos.music.player.code.MediaController.prepare(
-                                    playStatusData.music,
-                                    playListData.playingMusicList!!,
+                                    savedMusic,
+                                    queue,
                                     playStatusData.position,
                                     playStatusData.shuffleModeEnabled,
                                     playStatusData.repeatMode,
@@ -115,8 +120,8 @@ class YosBasicApplication : Application() {
                                 )
                             }
 
-                            if (playListData.playingMusicList != null) {
-                                playingMusicList.value = playListData.playingMusicList
+                            if (queue.isNotEmpty()) {
+                                playingMusicList.value = queue
                             }
                         }
                     } catch (e:Exception) {
