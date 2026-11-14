@@ -4,6 +4,14 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import yos.music.player.data.libraries.PlayListLibrary
+import yos.music.player.ui.widgets.basic.OptionDialog
+import yos.music.player.ui.widgets.basic.SearchTextField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -57,11 +65,18 @@ import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.toUI
 import yos.music.player.ui.widgets.basic.Title
 
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun PlayLists(navController: NavController) {
     val playLists = playList.sortedBy { it.name }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val creating = remember { mutableStateOf(false) }
+    val newName = remember { mutableStateOf("") }
+    val openEdit: (PlayList) -> Unit = { list ->
+        PlayListLibrary.editingID = list.listID
+        navController.toUI(UI.PlayListEdit)
+    }
     Title(title = stringResource(id = R.string.page_library_playlists),
         onBack = {
             navController.popBackStack()
@@ -70,7 +85,8 @@ fun PlayLists(navController: NavController) {
             item("AddList") {
                 val targetTitle = context.getString(R.string.page_library_playlists_add_title)
                 PlayListItem(playListType = PlayListType.Add, title = targetTitle) {
-
+                    newName.value = ""
+                    creating.value = true
                 }
 
                 Spacer(
@@ -109,11 +125,11 @@ fun PlayLists(navController: NavController) {
                 playLists,
                 key = { _, playList -> playList.listID }
             ) { index, playList ->
-                PlayListItem(playList = playList) {
+                PlayListItem(playList = playList, onLongClick = { openEdit(playList) }) {
                     scope.launch(Dispatchers.IO) {
                         val targetTitle = playList.name
                         val targetList = convertToSongList(playList.songDataList, songs)
-                        LibraryObject.setTargetListWithTitle(targetTitle, targetList)
+                        LibraryObject.setTargetListWithTitle(targetTitle, targetList, keepOrder = true)
                         withContext(Dispatchers.Main) {
                             navController.toUI(UI.NormalMusic)
                         }
@@ -121,6 +137,15 @@ fun PlayLists(navController: NavController) {
                 }
                 key(index) {
                     val needDivider = index < playLists.size - 1
+                    if (!needDivider) {
+                        Text(
+                            text = stringResource(id = R.string.playlist_edit_hint),
+                            fontSize = 13.sp,
+                            modifier = Modifier
+                                .padding(start = 22.dp, top = 12.dp)
+                                .alpha(0.5f)
+                        )
+                    }
                     if (needDivider) {
                         Spacer(
                             modifier = Modifier
@@ -135,6 +160,31 @@ fun PlayLists(navController: NavController) {
             }
         }
     )
+
+    if (creating.value) {
+        OptionDialog(
+            icon = {},
+            title = stringResource(id = R.string.page_library_playlists_add_title),
+            content = {
+                SearchTextField(
+                    text = newName.value,
+                    placeholder = stringResource(id = R.string.nowplaying_more_new_playlist),
+                    onValueChange = { newName.value = it },
+                    onSearch = {},
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            positiveContent = stringResource(id = R.string.playlist_edit_create),
+            negativeContent = stringResource(id = R.string.settings_play_history_clear_cancel),
+            onPositive = {
+                val name = newName.value.trim()
+                if (name.isNotEmpty()) PlayListLibrary.create(name)
+                creating.value = false
+            },
+            onNegative = { creating.value = false },
+            onDismissRequest = { creating.value = false }
+        )
+    }
 }
 
 private fun convertToSongList(
@@ -151,16 +201,15 @@ private enum class PlayListType {
     Add, Favorite
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun LazyItemScope.PlayListItem(playList: PlayList, itemClick: () -> Unit) {
+private fun LazyItemScope.PlayListItem(playList: PlayList, onLongClick: () -> Unit, itemClick: () -> Unit) {
     Row(
         modifier = Modifier
             .animateItem(fadeInSpec = null, fadeOutSpec = null)
             .height(80.dp)
             .fillMaxWidth()
-            .clickable {
-                itemClick()
-            }
+            .combinedClickable(onLongClick = onLongClick, onClick = itemClick)
             .padding(start = 22.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

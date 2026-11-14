@@ -121,6 +121,10 @@ fun Settings(navController: NavController) =
                                 navController.toUI(UI.Settings.ExoplayerSetting)
                             }
                             Divider()
+                            LabelItem(title = stringResource(id = R.string.settings_audio_equalizer)) {
+                                navController.toUI(UI.Settings.EqualizerSetting)
+                            }
+                            Divider()
                             SwitchItem(
                                 title = stringResource(id = R.string.settings_audio_fade_in_out),
                                 // desc = stringResource(id = R.string.settings_audio_fade_in_out_desc),

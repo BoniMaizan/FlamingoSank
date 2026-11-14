@@ -128,8 +128,10 @@ import yos.music.player.ui.pages.library.albums.AlbumInfo
 import yos.music.player.ui.pages.library.albums.LocalAlbums
 import yos.music.player.ui.pages.library.artists.LocalArtists
 import yos.music.player.ui.pages.library.playlists.PlayLists
+import yos.music.player.ui.pages.library.playlists.PlayListEdit
 import yos.music.player.ui.pages.settings.Settings
 import yos.music.player.ui.pages.settings.audio.exoPlayer.ExoPlayerSettings
+import yos.music.player.ui.pages.settings.audio.EqualizerSettings
 import yos.music.player.ui.pages.settings.audio.exoPlayer.MediaCodec
 import yos.music.player.ui.pages.settings.extend.statusBarLyric.LyricGetter
 import yos.music.player.ui.pages.settings.library.LibraryOverview
@@ -440,6 +442,9 @@ class MainActivity : BaseActivity() {
                                             composable(UI.PlayLists) {
                                                 PlayLists(navController)
                                             }
+                                            composable(UI.PlayListEdit) {
+                                                PlayListEdit(navController)
+                                            }
                                             composable(UI.NormalMusic) {
                                                 NormalMusic(navController)
                                             }
@@ -475,6 +480,9 @@ class MainActivity : BaseActivity() {
                                             }
                                             composable(ExoplayerSetting) {
                                                 ExoPlayerSettings(navController)
+                                            }
+                                            composable(UI.Settings.EqualizerSetting) {
+                                                EqualizerSettings(navController)
                                             }
                                             composable(UI.Settings.About) {
                                                 About(

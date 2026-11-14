@@ -57,6 +57,7 @@ import yos.music.player.code.utils.player.FadeExo
 import yos.music.player.code.utils.player.FadeExo.fadePause
 import yos.music.player.code.utils.player.FadeExo.fadePlay
 import yos.music.player.code.utils.player.SleepTimer
+import yos.music.player.code.utils.player.AudioEffects
 import yos.music.player.data.libraries.HistoryLibrary
 import yos.music.player.data.libraries.MusicLibrary
 import yos.music.player.data.libraries.MusicLibrary.toMediaItem
@@ -469,6 +470,7 @@ class YosPlaybackService : MediaSessionService() {
         }
 
         SleepTimer.player = player
+        AudioEffects.attach(player)
         var historyPending = true
         forwardingPlayer.addListener(
             object : Player.Listener {
@@ -507,7 +509,9 @@ class YosPlaybackService : MediaSessionService() {
                         val finalLrcContent = if (lrcContent == null) {
                             val lrcPath = "${thisPath?.substringBeforeLast(".")}.lrc"
                             println("获取歌词元数据失败，将读取：$lrcPath")
-                            AudioMetadataUtils.loadLrcFile(this@YosPlaybackService, lrcPath) ?: ""
+                            AudioMetadataUtils.loadLrcFile(this@YosPlaybackService, lrcPath)?.takeIf { it.isNotBlank() }
+                                ?: thisPath?.let { AudioMetadataUtils.loadEmbeddedLyrics(it) }
+                                ?: ""
                         } else {
                             lrcContent
                         }
@@ -580,6 +584,11 @@ class YosPlaybackService : MediaSessionService() {
                         historyPending = false
                         forwardingPlayer.currentMediaItem?.let { HistoryLibrary.record(it.toYosMediaItem()) }
                     }
+                }
+
+                override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                    super.onAudioSessionIdChanged(audioSessionId)
+                    AudioEffects.attach(player)
                 }
 
                 override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
@@ -749,6 +758,7 @@ class YosPlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        AudioEffects.release()
         mediaSession?.run {
             player.release()
             release()

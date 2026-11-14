@@ -166,6 +166,19 @@ object SettingsLibrary {
      * 渐入渐出播放
      */
     @Stable
+    var EqEnabled by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_audio_eq_enabled", initialValue = false)
+
+    // Band levels in millibels, comma separated
+    @Stable
+    var EqLevels by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_audio_eq_levels", initialValue = "")
+
+    @Stable
+    var PlaybackSpeed by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_audio_speed", initialValue = "1.0")
+
+    @Stable
+    var KeepPitch by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_audio_keep_pitch", initialValue = true)
+
+    @Stable
     var FadePlay by mutableDataSaverStateOf(
         dataSaverInterface = SettingsSaver,
         key = "settings_audio_fade_in_out",

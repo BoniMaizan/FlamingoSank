@@ -44,6 +44,14 @@ object PlayListLibrary {
         playList -= this
     }
 
+    // Playlist opened in the edit page
+    var editingID = ""
+
+    fun PlayList.setSongs(songs: List<Uri>) {
+        playList += copy(songDataList = songs)
+        playList -= this
+    }
+
     fun PlayList.rename(name: String) {
         playList += this.copy(name = name)
         playList -= this

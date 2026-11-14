@@ -24,6 +24,13 @@ object AudioMetadataUtils {
         }
     }
 
+    // Lyrics stored in the file's tags (ID3 USLT, Vorbis LYRICS, MP4 ©lyr...)
+    fun loadEmbeddedLyrics(filePath: String): String? = runCatching {
+        ParcelFileDescriptor.open(File(filePath), ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+            TagLib.getMetadata(fd.dup().detachFd(), false)?.propertyMap?.get("LYRICS")?.firstOrNull()
+        }
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+
     fun getQualityInfos(filePath: String): Pair<Int, Int> {
         val songFile = File(filePath)
         var bitrate: Int

@@ -21,6 +21,7 @@ interface UI {
 
         const val NormalMusic = "NormalMusic"
         const val PlayLists = "PlayLists"
+        const val PlayListEdit = "PlayListEdit"
         const val LocalArtists = "LocalArtists"
         const val LocalAlbums = "LocalAlbums"
 
@@ -35,6 +36,7 @@ interface UI {
 
             const val LyricGetter = "LyricGetter"
             const val ExoplayerSetting = "ExoplayerSetting"
+            const val EqualizerSetting = "EqualizerSetting"
             const val About = "About"
             const val MediaCodec = "MediaCodec"
 

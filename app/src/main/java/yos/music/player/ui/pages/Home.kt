@@ -1,6 +1,7 @@
 package yos.music.player.ui.pages
 
 import android.graphics.drawable.Drawable
+import android.provider.MediaStore
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -57,6 +58,8 @@ import yos.music.player.R
 import yos.music.player.code.MediaController
 import yos.music.player.code.utils.others.BitmapResolver
 import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.libraries.HistoryLibrary
+import yos.music.player.data.libraries.FavPlayListLibrary
 import yos.music.player.data.libraries.YosMediaItem
 import yos.music.player.data.libraries.artistsName
 import yos.music.player.data.libraries.defaultAlbum
@@ -83,6 +86,38 @@ fun Home(
         content = {
             item("RecommendCard") {
                 RecommendCard(imageViewModel)
+            }
+            item("RecentlyPlayed") {
+                HomeShelf(
+                    stringResource(id = R.string.home_recently_played),
+                    HistoryLibrary.history.distinctBy { it.uri },
+                    navController
+                )
+            }
+            item("RecentlyAdded") {
+                val songs = runCatching { MusicLibrary.songs }.getOrDefault(emptyList())
+                val context = LocalContext.current
+                // The library's own addDate is unreliable: ask MediaStore by media id
+                val recent = remember(songs) {
+                    val added = runCatching {
+                        context.contentResolver.query(
+                            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                            arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DATE_ADDED),
+                            null, null, null
+                        )?.use { c ->
+                            buildMap { while (c.moveToNext()) put(c.getLong(0).toString(), c.getLong(1)) }
+                        }
+                    }.getOrNull().orEmpty()
+                    songs.sortedByDescending { added[it.mediaId] ?: 0L }
+                }
+                HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController)
+            }
+            item("Favorites") {
+                HomeShelf(
+                    stringResource(id = R.string.page_library_playlists_fav_title),
+                    FavPlayListLibrary.favPlayList.reversed(),
+                    navController
+                )
             }
         })
 
