@@ -142,6 +142,8 @@
     <string name="sleep_timer_minutes">%1$d Minutes</string>
     <string name="sleep_timer_end_of_song">End of Song</string>
     <string name="sleep_timer_off">Turn Off Timer</string>
+    <string name="sleep_timer_fade">Fade Out at End</string>
+    <string name="sleep_timer_fade_desc">Lowers the volume over the last 30 seconds.</string>
     <string name="playlist_edit_move_up">Move Up</string>
     <string name="playlist_edit_move_down">Move Down</string>
     <string name="playlist_edit_remove">Remove from Playlist</string>

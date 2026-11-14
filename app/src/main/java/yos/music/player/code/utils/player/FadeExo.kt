@@ -102,6 +102,18 @@ object FadeExo {
         fadeVolume(this, currentVolume, 1f, fadeAnimationDuration, 1)
     }
 
+    // Sleep timer: lower the volume slowly, then pause. A play/pause in between cancels it
+    fun ExoPlayer.slowFadePause(duration: Long) {
+        fadeVolume(this, this.volume, 0f, duration, 1) {
+            // onEnd also runs when another fade cancels this one: only pause if it reached silence
+            if (this.volume <= 0.01f) {
+                setPlaying(0)
+                targetStatus = 0
+                this.pause()
+            }
+        }
+    }
+
     private fun setPlaying(targetStatus: Int) {
         isPlaying.value = targetStatus == 1
     }

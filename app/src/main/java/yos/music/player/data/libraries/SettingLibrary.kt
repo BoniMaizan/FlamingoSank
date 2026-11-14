@@ -166,6 +166,9 @@ object SettingsLibrary {
      * 渐入渐出播放
      */
     @Stable
+    var SleepTimerFade by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_sleep_timer_fade", initialValue = true)
+
+    @Stable
     var EqEnabled by mutableDataSaverStateOf(dataSaverInterface = SettingsSaver, key = "settings_audio_eq_enabled", initialValue = false)
 
     // Band levels in millibels, comma separated

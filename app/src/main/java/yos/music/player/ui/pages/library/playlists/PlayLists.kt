@@ -4,6 +4,11 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -196,6 +201,36 @@ private fun convertToSongList(
     }
 }
 
+// Up to four song covers in a 2x2 grid, like the mockup
+@Composable
+private fun PlayListCover(uris: List<Uri>, modifier: Modifier) {
+    val thumbs = remember(uris) {
+        uris.mapNotNull { uri -> songs.firstOrNull { it.uri == uri }?.thumb }.distinct().take(4)
+    }
+    Box(modifier) {
+        when {
+            thumbs.isEmpty() -> Image(
+                painter = painterResource(id = R.drawable.placeholder_playlist_default),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize()
+            )
+            thumbs.size < 4 -> AsyncImage(
+                model = thumbs[0], contentDescription = null,
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()
+            )
+            else -> Column(Modifier.fillMaxSize()) {
+                for (row in 0..1) Row(Modifier.weight(1f)) {
+                    for (col in 0..1) AsyncImage(
+                        model = thumbs[row * 2 + col], contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.weight(1f).fillMaxHeight()
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Stable
 private enum class PlayListType {
     Add, Favorite
@@ -218,9 +253,7 @@ private fun LazyItemScope.PlayListItem(playList: PlayList, onLongClick: () -> Un
         val shape = YosRoundedCornerShape(4.dp)
         val density = LocalDensity.current
 
-        Image(painter = painterResource(id = R.drawable.placeholder_playlist_default),
-            contentDescription = null,
-            modifier = Modifier
+        PlayListCover(playList.songDataList, modifier = Modifier
                 .size(64.dp)
                 .graphicsLayer {
                     compositingStrategy = CompositingStrategy.Offscreen

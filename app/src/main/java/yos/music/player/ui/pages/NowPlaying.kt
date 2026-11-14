@@ -136,6 +136,7 @@ import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
 import yos.music.player.ui.pages.settings.SelectObjectItem
+import yos.music.player.ui.pages.settings.SwitchItem
 import yos.music.player.ui.widgets.basic.OptionDialog
 import yos.music.player.code.utils.player.SleepTimer
 import kotlinx.coroutines.withContext
@@ -1485,6 +1486,35 @@ private fun SleepTimerPicker(onPick: (() -> Unit) -> Unit) {
             onPick { SleepTimer.cancel() }
         }) {}
     }
+    SwitchItem(
+        title = stringResource(id = R.string.sleep_timer_fade),
+        desc = stringResource(id = R.string.sleep_timer_fade_desc),
+        onClick = { SleepTimer.setFadeOut(!SleepTimer.fadeOut.value) },
+        checkedLambda = { SleepTimer.fadeOut.value }
+    )
+}
+
+// Opened by the moon button under the player
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SleepTimerSheet(onDismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val closeThen: (() -> Unit) -> Unit = { action ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            onDismiss()
+            action()
+        }
+    }
+    OptionDialog(
+        icon = {},
+        title = stringResource(id = R.string.nowplaying_more_sleep_timer),
+        bottomSheetState = sheetState,
+        content = { SleepTimerPicker { action -> closeThen(action) } },
+        positiveContent = stringResource(id = R.string.nowplaying_more_close),
+        onPositive = { closeThen {} },
+        onDismissRequest = onDismiss
+    )
 }
 
 @Composable
@@ -2026,6 +2056,28 @@ private fun PlayerControl(
                     Spacer(modifier = Modifier.weight(0.1f))
 
                     AirPlay()
+
+                    Spacer(modifier = Modifier.weight(0.1f))
+
+                    val showTimer = remember { mutableStateOf(false) }
+                    val timerOn = SleepTimer.stopAt.longValue != 0L
+                    Box(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .weight(1f)
+                            .clickable(
+                                onClick = { showTimer.value = true },
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painterResource(id = if (timerOn) R.drawable.ic_nowplaying_sleepon else R.drawable.ic_nowplaying_sleep),
+                            contentDescription = stringResource(id = R.string.nowplaying_more_sleep_timer),
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    if (showTimer.value) SleepTimerSheet { showTimer.value = false }
 
                     Spacer(modifier = Modifier.weight(0.1f))
 
