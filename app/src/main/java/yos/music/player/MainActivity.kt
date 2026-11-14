@@ -122,6 +122,16 @@ import yos.music.player.ui.UI.Settings.Companion.ExoplayerSetting
 import yos.music.player.ui.pages.HomeNav
 import yos.music.player.ui.pages.NowPlaying
 import yos.music.player.ui.pages.NowPlayingPage.Album
+import androidx.compose.ui.draw.alpha
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.unit.Dp
+import yos.music.player.data.libraries.defaultArtistsName
+import yos.music.player.data.libraries.artistsName
+import yos.music.player.code.utils.player.SleepTimer
+import yos.music.player.ui.pages.SleepTimerSheet
+import yos.music.player.ui.pages.NowPlayingPage.PlayingList
+import yos.music.player.ui.pages.NowPlayingPage.Lyric
 import yos.music.player.ui.pages.library.Library
 import yos.music.player.ui.pages.library.NormalMusic
 import yos.music.player.ui.pages.library.History
@@ -273,6 +283,8 @@ class MainActivity : BaseActivity() {
                             rememberSaveable(key = "MainActivity_nowPageNowPlaying") {
                                 mutableStateOf(Album)
                             }
+                        val showSleepTimer = remember("MainActivity_showSleepTimer") { mutableStateOf(false) }
+                        if (showSleepTimer.value) SleepTimerSheet { showSleepTimer.value = false }
 
                         val hazeState = remember { HazeState() }
 
@@ -968,6 +980,15 @@ class MainActivity : BaseActivity() {
                                                                             overflow = TextOverflow.Ellipsis,
                                                                             color = Color.Black withNight Color.White
                                                                         )
+                                                                        if (wide) Text(
+                                                                            text = MediaController.musicPlaying.value?.artistsName ?: defaultArtistsName,
+                                                                            fontSize = 13.5.sp,
+                                                                            lineHeight = 15.sp,
+                                                                            modifier = Modifier.alpha(0.6f).padding(top = 3.dp),
+                                                                            maxLines = 1,
+                                                                            overflow = TextOverflow.Ellipsis,
+                                                                            color = Color.Black withNight Color.White
+                                                                        )
                                                                         /*Text(
                                                                 text = musicPlaying.value?.Artist
                                                                     ?: "未知艺术家",
@@ -988,6 +1009,13 @@ class MainActivity : BaseActivity() {
                                                                         .padding(end = 10.dp),
                                                                     verticalAlignment = Alignment.CenterVertically
                                                                 ) {
+                                                                    if (wide) {
+                                                                        MiniButton(R.drawable.ic_nowplaying_rewind, "Previous", 30.dp) {
+                                                                            Vibrator.click(context)
+                                                                            MediaController.mediaControl?.seekToPreviousMediaItem()
+                                                                        }
+                                                                        Spacer(Modifier.width(18.dp))
+                                                                    }
                                                                     Box(
                                                                         modifier = Modifier
                                                                             .size(34.dp)
@@ -1075,8 +1103,27 @@ class MainActivity : BaseActivity() {
                                                                             tint = Color.Black withNight Color.White
                                                                         )
                                                                     }
+                                                                    if (wide) {
+                                                                        // Opens the player straight on its lyrics or queue pane
+                                                                        val openOn: (String) -> Unit = { page ->
+                                                                            nowPageNowPlaying.value = page
+                                                                            scope.launch {
+                                                                                offsetY.animateTo(parentHeight.intValue.toFloat(), animationSpec = navSpec)
+                                                                            }
+                                                                        }
+                                                                        Spacer(Modifier.width(30.dp))
+                                                                        MiniButton(R.drawable.ic_nowplaying_lyrics, "Lyrics", 26.dp) { openOn(Lyric) }
+                                                                        Spacer(Modifier.width(18.dp))
+                                                                        MiniButton(
+                                                                            if (SleepTimer.stopAt.longValue != 0L) R.drawable.ic_nowplaying_sleepon else R.drawable.ic_nowplaying_sleep,
+                                                                            "Sleep Timer", 26.dp
+                                                                        ) { showSleepTimer.value = true }
+                                                                        Spacer(Modifier.width(18.dp))
+                                                                        MiniButton(R.drawable.ic_nowplaying_queue, "Up Next", 26.dp) { openOn(PlayingList) }
+                                                                    }
                                                                 }
                                                             }
+                                                            if (wide) MiniProgress(Modifier.align(Alignment.BottomCenter))
                                                         }
                                                     }
                                                 }
@@ -1253,5 +1300,51 @@ fun readFile(path: String): String? {
     } catch (e: Exception) {
         //e.printStackTrace()
         null
+    }
+}
+// Mini player button for the tablet layout
+@Composable
+private fun MiniButton(icon: Int, description: String, size: Dp, onClick: () -> Unit) = Box(
+    modifier = Modifier
+        .size(size)
+        .clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = ripple(bounded = false),
+            onClick = onClick
+        ),
+    contentAlignment = Alignment.Center
+) {
+    Icon(
+        painterResource(id = icon),
+        contentDescription = description,
+        modifier = Modifier.fillMaxSize(),
+        tint = Color.Black withNight Color.White
+    )
+}
+
+// Thin progress line along the bottom of the mini player
+@Composable
+private fun MiniProgress(modifier: Modifier) {
+    val progress = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val player = MediaController.mediaControl
+            val duration = player?.duration ?: 0L
+            progress.floatValue = if (player != null && duration > 0) (player.currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f
+            delay(500)
+        }
+    }
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(2.dp)
+            .background((Color.Black withNight Color.White).copy(alpha = 0.1f))
+    ) {
+        Box(
+            Modifier
+                .fillMaxWidth(progress.floatValue)
+                .fillMaxHeight()
+                .background(MaterialTheme.colorScheme.primary)
+        )
     }
 }
