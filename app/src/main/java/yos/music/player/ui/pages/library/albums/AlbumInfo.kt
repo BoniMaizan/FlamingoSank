@@ -261,6 +261,8 @@ fun AlbumInfo(
                 modifier = Modifier
                     .then(if (wide) Modifier.weight(1f) else Modifier)
                     .fillMaxSize()
+                    // same offset as the cover column on the left
+                    .then(if (wide) Modifier.statusBarsPadding().padding(top = 9.5.dp) else Modifier)
                     .overScrollVertical(),
                 flingBehavior = rememberOverscrollFlingBehavior { state },
                 contentPadding = PaddingValues(bottom = 18.dp, top = 54.dp)

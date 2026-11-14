@@ -211,6 +211,7 @@ fun NormalMusic(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 18.dp)
+                                .padding(end = if (wide) 28.dp else 0.dp)
                                 .padding(top = 5.dp),
                             onSearch = {
                                 if (searchText.value.isNotEmpty()) {
@@ -223,6 +224,7 @@ fun NormalMusic(navController: NavController) {
                             Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 18.dp)
+                                .padding(end = if (wide) 28.dp else 0.dp)
                                 .padding(top = 12.dp, bottom = 15.dp)
                         ) {
                             NormalButton(

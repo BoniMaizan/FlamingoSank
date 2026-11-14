@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -489,7 +490,7 @@ private fun TitleBar(
                 .padding(top = 5.dp)
         ) {
             Box(Modifier.statusBarsHeight(48.dp), contentAlignment = Alignment.CenterStart) {
-                if (onBack != null) {
+                if (onBack != null && !LocalHideBack.current) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_back),
                         contentDescription = null,
@@ -631,3 +632,6 @@ private fun TitleItem(
         }
     }
 }
+
+// True for a page shown in the right pane of tablet Settings: the list already has the back arrow
+val LocalHideBack = compositionLocalOf { false }

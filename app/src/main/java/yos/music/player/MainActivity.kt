@@ -21,6 +21,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOutQuart
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -220,6 +222,13 @@ class MainActivity : BaseActivity() {
                         println("重组：主载体")
                         val miniPlayerHeight = 62.dp
                         val wide = isWideLayout()
+                        val settingsRoutes = remember {
+                            setOf(
+                                UI.Settings.Main, UI.Settings.LibraryOverview, UI.Settings.LyricGetter, UI.Settings.ExoplayerSetting,
+                                UI.Settings.EqualizerSetting, UI.Settings.About, UI.Settings.MediaCodec, UI.Settings.LyricSetting,
+                                UI.Settings.UserInterfaceSetting, UI.Settings.NotificationSetting
+                            )
+                        }
                         val height = remember("MainActivity_height") { mutableIntStateOf(0) }
 
                         val navHeight = remember("MainActivity_navHeight") {
@@ -407,6 +416,7 @@ class MainActivity : BaseActivity() {
                                             navController = navController,
                                             startDestination = UI.HomePage,
                                             enterTransition = {
+                                                if (wide && initialState.destination.route in settingsRoutes && targetState.destination.route in settingsRoutes) EnterTransition.None else
                                                 fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
                                                     animationSpec = animationSpec,
                                                     clip = false,
@@ -416,6 +426,7 @@ class MainActivity : BaseActivity() {
                                                 }
                                             },
                                             exitTransition = {
+                                                if (wide && initialState.destination.route in settingsRoutes && targetState.destination.route in settingsRoutes) ExitTransition.None else
                                                 fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
                                                     animationSpec = animationSpec,
                                                     clip = false,
@@ -425,6 +436,7 @@ class MainActivity : BaseActivity() {
                                                 }
                                             },
                                             popEnterTransition = {
+                                                if (wide && initialState.destination.route in settingsRoutes && targetState.destination.route in settingsRoutes) EnterTransition.None else
                                                 fadeIn(animationSpec = fadeAnimationSpec) + expandHorizontally(
                                                     animationSpec = animationSpec,
                                                     clip = false,
@@ -434,6 +446,7 @@ class MainActivity : BaseActivity() {
                                                 }
                                             },
                                             popExitTransition = {
+                                                if (wide && initialState.destination.route in settingsRoutes && targetState.destination.route in settingsRoutes) ExitTransition.None else
                                                 fadeOut(animationSpec = fadeAnimationSpec) + shrinkHorizontally(
                                                     animationSpec = animationSpec,
                                                     clip = false,

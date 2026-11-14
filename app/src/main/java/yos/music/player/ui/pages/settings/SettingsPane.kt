@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import yos.music.player.ui.widgets.basic.LocalHideBack
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -29,7 +31,13 @@ fun SettingsPane(navController: NavController, route: String, page: @Composable 
                 .fillMaxHeight()
         ) {
             // Main has no page of its own: show the first one beside the list
-            Settings(navController, selected = if (route == UI.Settings.Main) UI.Settings.LibraryOverview else route)
+            Settings(
+                navController, selected = when (route) {
+                    UI.Settings.Main -> UI.Settings.LibraryOverview
+                    UI.Settings.MediaCodec -> UI.Settings.ExoplayerSetting
+                    else -> route
+                }
+            )
         }
         Box(
             Modifier
@@ -41,6 +49,9 @@ fun SettingsPane(navController: NavController, route: String, page: @Composable 
             Modifier
                 .weight(1f)
                 .fillMaxHeight()
-        ) { page() }
+        ) {
+            // MediaCodec is a level deeper and keeps its arrow back to ExoPlayer
+            CompositionLocalProvider(LocalHideBack provides (route != UI.Settings.MediaCodec)) { page() }
+        }
     }
 }
