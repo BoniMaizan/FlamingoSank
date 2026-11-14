@@ -61,6 +61,28 @@ object PlayListLibrary {
 }
 
 @Stable
+object HistoryLibrary {
+    private const val MAX_ENTRIES = 500
+
+    // Most recent first; a song appears once per listen
+    @Stable
+    var history by mutableDataSaverListStateOf(
+        dataSaverInterface = PlayListSaver,
+        key = "yos_listen_history",
+        initialValue = listOf<YosMediaItem>()
+    )
+        private set
+
+    fun record(music: YosMediaItem) {
+        if (SettingsLibrary.ListenHistory) history = (listOf(music) + history).take(MAX_ENTRIES)
+    }
+
+    fun clear() {
+        history = listOf()
+    }
+}
+
+@Stable
 object FavPlayListLibrary {
     @Stable
     var favPlayList by mutableDataSaverListStateOf(

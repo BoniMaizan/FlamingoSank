@@ -7,7 +7,10 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -19,13 +22,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import yos.music.player.R
 import yos.music.player.code.MediaController
+import yos.music.player.data.libraries.HistoryLibrary
 import yos.music.player.data.libraries.MusicLibrary
 import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.ui.UI
 import yos.music.player.ui.toUI
+import yos.music.player.ui.widgets.basic.OptionDialog
 import yos.music.player.ui.widgets.basic.RoundColumn
 import yos.music.player.ui.widgets.basic.Title
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Settings(navController: NavController) =
     SettingBackground {
@@ -118,7 +124,7 @@ fun Settings(navController: NavController) =
                             SwitchItem(
                                 title = stringResource(id = R.string.settings_audio_fade_in_out),
                                 // desc = stringResource(id = R.string.settings_audio_fade_in_out_desc),
-                                onClick = { },
+                                onClick = { SettingsLibrary.FadePlay = !SettingsLibrary.FadePlay },
                                 checkedLambda = { SettingsLibrary.FadePlay }
                             )
                         }
@@ -130,9 +136,30 @@ fun Settings(navController: NavController) =
                             SwitchItem(
                                 title = stringResource(id = R.string.settings_play_history),
                                 // desc = stringResource(id = R.string.settings_play_history_desc),
-                                onClick = { },
+                                onClick = { SettingsLibrary.ListenHistory = !SettingsLibrary.ListenHistory },
                                 checkedLambda = { SettingsLibrary.ListenHistory }
                             )
+                            Divider()
+                            val confirmClear = remember { mutableStateOf(false) }
+                            LabelItem(
+                                title = stringResource(id = R.string.settings_play_history_clear),
+                                superLink = true
+                            ) { confirmClear.value = true }
+                            if (confirmClear.value) {
+                                OptionDialog(
+                                    icon = {},
+                                    title = stringResource(id = R.string.settings_play_history_clear_confirm),
+                                    content = null,
+                                    positiveContent = stringResource(id = R.string.settings_play_history_clear),
+                                    negativeContent = stringResource(id = R.string.settings_play_history_clear_cancel),
+                                    onPositive = {
+                                        HistoryLibrary.clear()
+                                        confirmClear.value = false
+                                    },
+                                    onNegative = { confirmClear.value = false },
+                                    onDismissRequest = { confirmClear.value = false }
+                                )
+                            }
                         }
                         ListHeader(content = stringResource(id = R.string.settings_play_history_desc))
 

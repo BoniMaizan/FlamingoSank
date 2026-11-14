@@ -22,10 +22,15 @@ object LibraryObject {
     private val targetList: MutableState<List<YosMediaItem>> = mutableStateOf(emptyList())
     @Stable
     private val targetListTitle = mutableStateOf("")
-    fun setTargetListWithTitle(title: String, list: List<YosMediaItem>) {
+    @Stable
+    private val targetKeepsOrder = mutableStateOf(false)
+    // keepOrder: show the list as given (e.g. history, newest first) instead of the user's song sort
+    fun setTargetListWithTitle(title: String, list: List<YosMediaItem>, keepOrder: Boolean = false) {
         targetListTitle.value = title
         targetList.value = list
+        targetKeepsOrder.value = keepOrder
     }
+    fun targetKeepsOrder(): Boolean = targetKeepsOrder.value
     fun getTargetListWithTitle(): Pair<String, List<YosMediaItem>> {
         return Pair(targetListTitle.value, targetList.value)
     }

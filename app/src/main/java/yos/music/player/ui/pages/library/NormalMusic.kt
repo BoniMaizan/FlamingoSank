@@ -92,6 +92,7 @@ fun NormalMusic(navController: NavController) {
         val pageInfo = LibraryObject.getTargetListWithTitle()
 
         val musicList = pageInfo.second
+        val keepOrder = LibraryObject.targetKeepsOrder()
         val searchText = remember("NormalMusic_searchText") {
             mutableStateOf("")
         }
@@ -123,7 +124,7 @@ fun NormalMusic(navController: NavController) {
             }
         } else {
             val useSearch = remember { derivedStateOf { searchText.value.isNotEmpty() } }
-            val list: MutableState<List<YosMediaItem>> = remember { mutableStateOf(musicList.sortX()) }
+            val list: MutableState<List<YosMediaItem>> = remember { mutableStateOf(musicList.sortX(keepOrder)) }
 
             YosWrapper {
                 LaunchedEffect(searchText.value, SongSort, EnableDescending) {
@@ -147,7 +148,7 @@ fun NormalMusic(navController: NavController) {
                                 musicList
                             }
                         }
-                        list.value = filteredList.sortX()
+                        list.value = filteredList.sortX(keepOrder)
                     }
                 }
             }
@@ -276,7 +277,7 @@ fun NormalMusic(navController: NavController) {
     }
 }
 
-private fun List<YosMediaItem>.sortX() =
+private fun List<YosMediaItem>.sortX(keepOrder: Boolean) = if (keepOrder) this else
     this.sortedBy { song ->
         when (SongSort) {
             SettingsLibrary.SongSortEnum.MUSIC_TITLE.ordinal -> Pinyin.toPinyin(

@@ -6,12 +6,14 @@ import android.animation.ValueAnimator
 import androidx.compose.runtime.Stable
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
+import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.data.objects.MediaViewModelObject.isPlaying
 
 @Stable
 object FadeExo {
     private var fadeVolumeAnimator: ValueAnimator? = null
-    private var fadeAnimationDuration: Long = 200L
+    // 0 ms = no fade: the animator jumps straight to the target volume
+    private val fadeAnimationDuration: Long get() = if (SettingsLibrary.FadePlay) 200L else 0L
     var targetStatus: Int = 0
 
     private fun fadeVolume(

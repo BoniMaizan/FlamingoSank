@@ -56,6 +56,8 @@ import yos.music.player.code.utils.lrc.YosLrcFactory
 import yos.music.player.code.utils.player.FadeExo
 import yos.music.player.code.utils.player.FadeExo.fadePause
 import yos.music.player.code.utils.player.FadeExo.fadePlay
+import yos.music.player.code.utils.player.SleepTimer
+import yos.music.player.data.libraries.HistoryLibrary
 import yos.music.player.data.libraries.MusicLibrary
 import yos.music.player.data.libraries.MusicLibrary.toMediaItem
 import yos.music.player.data.libraries.MusicLibrary.toYosMediaItem
@@ -466,6 +468,8 @@ class YosPlaybackService : MediaSessionService() {
             }
         }
 
+        SleepTimer.player = player
+        var historyPending = true
         forwardingPlayer.addListener(
             object : Player.Listener {
                 override fun onTracksChanged(tracks: Tracks) {
@@ -534,6 +538,7 @@ class YosPlaybackService : MediaSessionService() {
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    historyPending = true
                     /*mediaSession?.let { MediaController.sendNotification(it,context) }*/
                     mediaItem?.let {
                         yos.music.player.code.MediaController.onCase(
@@ -570,6 +575,16 @@ class YosPlaybackService : MediaSessionService() {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     super.onIsPlayingChanged(isPlaying)
                     MediaViewModelObject.isPlaying.value = isPlaying
+                    // Pausing and resuming the same song counts once
+                    if (isPlaying && historyPending) {
+                        historyPending = false
+                        forwardingPlayer.currentMediaItem?.let { HistoryLibrary.record(it.toYosMediaItem()) }
+                    }
+                }
+
+                override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                    super.onPlayWhenReadyChanged(playWhenReady, reason)
+                    if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM) SleepTimer.onSongEndPause()
                 }
 
                 override fun onEvents(player: Player, events: Player.Events) {

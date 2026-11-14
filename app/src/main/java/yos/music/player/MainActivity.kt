@@ -805,7 +805,10 @@ class MainActivity : BaseActivity() {
                                                     isPlaying.value = it
                                                 },
                                                 nowPageLambda = { nowPageNowPlaying.value },
-                                                showMiniPlayer = { yosBottomSheetConfig.showMenu }
+                                                showMiniPlayer = { yosBottomSheetConfig.showMenu },
+                                                onClose = {
+                                                    scope.launch { offsetY.animateTo(0f, animationSpec = navSpec) }
+                                                }
                                             ) {
                                                 nowPageNowPlaying.value = it
                                             }

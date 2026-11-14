@@ -6,6 +6,7 @@
     <string name="permission_grant_button_negative">Ignore</string>
     <string name="page_home_title">Home</string>
     <string name="page_library_songs">Songs</string>
+    <string name="page_library_history">History</string>
     <string name="page_settings_title">Settings</string>
     <string name="page_library_title">Library</string>
     <string name="home_recommend_title">Try These</string>
@@ -24,6 +25,9 @@
     <string name="settings_audio_exoplayer">ExoPlayer Options</string>
     <string name="settings_play">Play</string>
     <string name="settings_play_history">Use Listening History</string>
+    <string name="settings_play_history_clear">Clear Listening History</string>
+    <string name="settings_play_history_clear_confirm">Clear your listening history?</string>
+    <string name="settings_play_history_clear_cancel">Cancel</string>
     <string name="settings_play_history_desc">Music played on this device will appear in the "Recently Played", "Annual Memories" playlists.</string>
     <string name="settings_extend">Extend</string>
     <string name="settings_extend_statusbarlyric">Status Bar Lyrics</string>
@@ -120,4 +124,17 @@
     <string name="settings_performance_ui_nowplaying_show_volume_bar">Show Volume Bar</string>
     <string name="settings_performance_ui_nowplaying_show_volume_bar_desc">Display the volume adjustment bar at the bottom of the playback page.</string>
     <string name="settings_performance_ui_theme">Theme</string>
+    <string name="nowplaying_more_go_album">Go to Album</string>
+    <string name="nowplaying_more_share">Share</string>
+    <string name="nowplaying_more_close">Close</string>
+    <string name="nowplaying_more_add_playlist">Add to Playlist</string>
+    <string name="nowplaying_more_go_artist">Go to %1$s</string>
+    <string name="nowplaying_more_file_info">File Info</string>
+    <string name="nowplaying_more_new_playlist">New playlist name</string>
+    <string name="nowplaying_more_sleep_timer">Sleep Timer</string>
+    <string name="nowplaying_more_sleep_timer_minutes">Sleep Timer · %1$d min left</string>
+    <string name="nowplaying_more_sleep_timer_song">Sleep Timer · End of Song</string>
+    <string name="sleep_timer_minutes">%1$d Minutes</string>
+    <string name="sleep_timer_end_of_song">End of Song</string>
+    <string name="sleep_timer_off">Turn Off Timer</string>
 </resources>

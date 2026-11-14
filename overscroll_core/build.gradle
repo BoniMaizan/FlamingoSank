@@ -7,6 +7,7 @@ plugins {
 android {
     namespace 'com.cormor.overscroll.core'
     compileSdk 34
+    buildToolsVersion "36.1.0"
 
     defaultConfig {
         minSdk 21

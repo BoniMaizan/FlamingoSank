@@ -14,9 +14,14 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.Uri
+import android.provider.MediaStore
+import android.content.ContentUris
 import android.os.Build
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -55,6 +60,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.items
@@ -125,6 +131,13 @@ import com.google.accompanist.insets.statusBarsPadding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.material3.rememberModalBottomSheetState
+import yos.music.player.data.objects.LibraryObject
+import yos.music.player.ui.UI
+import yos.music.player.ui.toUI
+import yos.music.player.ui.pages.settings.SelectObjectItem
+import yos.music.player.ui.widgets.basic.OptionDialog
+import yos.music.player.code.utils.player.SleepTimer
 import kotlinx.coroutines.withContext
 import yos.music.player.R
 import yos.music.player.code.MediaController
@@ -140,6 +153,12 @@ import yos.music.player.code.utils.others.Vibrator
 import yos.music.player.code.utils.player.FadeExo.fadePause
 import yos.music.player.code.utils.player.FadeExo.fadePlay
 import yos.music.player.data.libraries.FavPlayListLibrary
+import yos.music.player.data.libraries.PlayList
+import yos.music.player.data.libraries.PlayListLibrary
+import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.libraries.artistsList
+import yos.music.player.ui.widgets.basic.DialogContent
+import yos.music.player.ui.widgets.basic.SearchTextField
 import yos.music.player.data.libraries.SettingsLibrary
 import yos.music.player.data.libraries.YosMediaItem
 import yos.music.player.data.libraries.artistsName
@@ -190,6 +209,34 @@ private val MaterialFadeOutTransitionSpec
     )
 */
 
+private val WidePaneWidth = 360.dp
+
+@Composable
+private fun TranslationToggle(
+    enabled: Boolean,
+    translation: MutableState<Boolean>,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .overlayEffect()
+            .alpha(0.4f)
+            // Only hit-testable while visible: at alpha 0 it sat over the "…" button and swallowed its taps
+            .then(if (!enabled) Modifier else Modifier.clickable(onClick = onToggle, indication = null, interactionSource = interaction)),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedContent(targetState = translation.value, transitionSpec = { fadeIn() togetherWith fadeOut() }) {
+            Icon(
+                painterResource(id = if (it) R.drawable.ic_nowplaying_translateon else R.drawable.ic_nowplaying_translate),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp)
+            )
+        }
+    }
+}
+
 @ExperimentalSharedTransitionApi
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -201,6 +248,7 @@ fun NowPlaying(
     isPlayingOnChanged: (Boolean) -> Unit,
     nowPageLambda: () -> String,
     showMiniPlayer: () -> Boolean,
+    onClose: () -> Unit,
     nowPageOnChanged: (String) -> Unit
 ) =
     Surface(
@@ -210,12 +258,33 @@ fun NowPlaying(
     ) {
         val context = LocalContext.current
 
+        // Tablet in landscape: a centred player column like the installed app, lyrics and queue beside it
+        val configuration = LocalConfiguration.current
+        val wide = configuration.screenWidthDp > configuration.screenHeightDp && configuration.screenWidthDp >= 600
+        val screenWidth = configuration.screenWidthDp.dp
+        val paneStart by animateDpAsState(
+            targetValue = when {
+                !wide -> 0.dp
+                nowPageLambda() == Album -> (screenWidth - WidePaneWidth) / 2
+                else -> (screenWidth / 2 - WidePaneWidth) / 2
+            }, label = "NowPlaying_paneStart"
+        )
+        // wrapContentWidth: the Surface parent forces its full width as a minimum
+        val paneModifier = if (wide) Modifier.wrapContentWidth(Alignment.Start).padding(start = paneStart).width(WidePaneWidth) else Modifier
+        val sideModifier = if (wide) Modifier.padding(start = screenWidth / 2, end = 32.dp) else Modifier
+
         val lrcEntries: MutableState<List<List<Pair<Float, String>>>> =
             MediaViewModelObject.lrcEntries
         val bitmap: MutableState<Uri?> = MediaViewModelObject.bitmap
 
         val thisMusicPlaying = remember("NowPlaying_thisMusicPlaying") {
             musicPlaying
+        }
+
+        // Closes the player, then opens a library page (its target is set by the caller)
+        val openPage: (String) -> Unit = { route ->
+            onClose()
+            navController.toUI(route)
         }
 
         val lastClickTime = rememberSaveable(key = "NowPlaying_lastClickTime") {
@@ -253,7 +322,7 @@ fun NowPlaying(
                     val time = 2500L
                     delay(time)
                     withContext(Dispatchers.Main) {
-                        if (TimeUtils.getNowMills() - lastClickTime.longValue >= time && nowPageLambda() == Lyric) {
+                        if (TimeUtils.getNowMills() - lastClickTime.longValue >= time && nowPageLambda() == Lyric && !wide) {
                             showControl.value = false
                         }
                     }
@@ -313,15 +382,23 @@ fun NowPlaying(
             val translationButtonEnabled = remember("NowPlaying_translationButtonEnabled") {
                 derivedStateOf { showControl.value && alphaAnim.value != 0f }
             }
+            val toggleTranslation = {
+                Vibrator.click(context)
+                translation.value = !translation.value
+                showControl.value = true
+                lastClickTime.longValue = TimeUtils.getNowMills()
+                SettingsLibrary.NowPlayingTranslation = translation.value
+            }
 
             println("重组：主功能区")
 
             // 歌词
             YosWrapper {
 
-                Column(
+                Box(
                     Modifier
                         .fillMaxSize()
+                        .then(sideModifier)
                         .graphicsLayer {
                             compositingStrategy =
                                 CompositingStrategy.ModulateAlpha
@@ -332,7 +409,7 @@ fun NowPlaying(
 
                     Lyric(
                         lrcEntries = { lrcEntries.value },
-                        weightLambda = { showControl.value },
+                        weightLambda = { showControl.value && !wide },
                         translationLambda = { translation.value },
                         onBackClick = {
                             showControl.value = true
@@ -341,6 +418,14 @@ fun NowPlaying(
                         },
                         mainViewModel = mainViewModel,
                         mediaViewModel = mediaViewModel
+                    )
+                    // Wide mode: next to the lyrics; under the title row it would cover the "…" button
+                    if (wide) TranslationToggle(
+                        translationButtonEnabled.value, translation, toggleTranslation,
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .statusBarsPadding()
+                            .padding(top = 48.dp)
                     )
                 }
             }
@@ -372,7 +457,7 @@ fun NowPlaying(
             YosWrapper {
                 SharedTransitionLayout {
                     Crossfade(
-                        targetState = nowPageLambda(),
+                        targetState = if (wide) Album else nowPageLambda(),
                         modifier = Modifier
                             .fillMaxSize()
                             .statusBarsPadding()
@@ -384,12 +469,13 @@ fun NowPlaying(
                             Album ->
                                 Column(
                                     Modifier
+                                        .then(paneModifier)
                                         .fillMaxSize()
                                         .clickable(enabled = false, onClick = {})
                                 ) {
                                     YosWrapper {
                                         Column(Modifier.fillMaxHeight(0.595f)) {
-                                            val isVisible = nowPageLambda() == Album
+                                            val isVisible = wide || nowPageLambda() == Album
 
                                             Album(
                                                 modifier = Modifier.sharedElementWithCallerManagedVisibility(
@@ -439,9 +525,7 @@ fun NowPlaying(
                                                     }
 
                                                     YosWrapper {
-                                                        ActionButtonsRow {
-                                                            it
-                                                        }
+                                                        ActionButtonsRow({ it }, openPage)
                                                     }
                                                 }
                                             }
@@ -463,7 +547,8 @@ fun NowPlaying(
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.thumb
                                             },
-                                            musicPlayingLambda = { thisMusicPlaying.value }) {
+                                            musicPlayingLambda = { thisMusicPlaying.value },
+                                            onOpenPage = openPage) {
                                             nowPageOnChanged(Album)
                                         }
                                     }
@@ -487,7 +572,8 @@ fun NowPlaying(
                                             albumUrlLambda = {
                                                 thisMusicPlaying.value?.thumb
                                             },
-                                            musicPlayingLambda = { thisMusicPlaying.value }) {
+                                            musicPlayingLambda = { thisMusicPlaying.value },
+                                            onOpenPage = openPage) {
                                             nowPageOnChanged(Album)
                                         }
                                         YosWrapper {
@@ -510,10 +596,36 @@ fun NowPlaying(
                 }
             }
 
+            // Wide mode: the queue sits beside the player column
+            if (wide) {
+                AnimatedVisibility(
+                    visible = nowPageLambda() == PlayingList,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .then(sideModifier)
+                            .statusBarsPadding()
+                            .padding(top = 40.dp)
+                    ) {
+                        PlayingList(
+                            shuffleModeEnabledLambda = { shuffleModeEnabled.value },
+                            shuffleModeOnChanged = { shuffleModeEnabled.value = it },
+                            repeatModeLambda = { repeatMode.intValue },
+                            repeatModeOnChanged = { repeatMode.intValue = it },
+                            thisMusicPlayingLambda = { thisMusicPlaying.value }
+                        )
+                    }
+                }
+            }
+
             // 音乐控制
             YosWrapper {
                 Column(
                     Modifier
+                        .then(paneModifier)
                         .fillMaxSize()
                         .statusBarsPadding(), verticalArrangement = Arrangement.Bottom
                 ) {
@@ -569,50 +681,7 @@ fun NowPlaying(
                                                 },
                                             horizontalArrangement = Arrangement.End
                                         ) {
-                                            YosWrapper {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .overlayEffect()
-                                                        .alpha(0.4f)
-                                                        .clickable(
-                                                            enabled = translationButtonEnabled.value,
-                                                            onClick = {
-                                                                Vibrator.click(context)
-                                                                translation.value =
-                                                                    !translation.value
-                                                                showControl.value = true
-                                                                lastClickTime.longValue =
-                                                                    TimeUtils.getNowMills()
-                                                                SettingsLibrary.NowPlayingTranslation =
-                                                                    translation.value
-                                                            },
-                                                            indication = null,
-                                                            interactionSource = remember { MutableInteractionSource() }),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    AnimatedContent(
-                                                        targetState = translation.value,
-                                                        transitionSpec = {
-                                                            fadeIn() togetherWith fadeOut()
-                                                        }) {
-                                                        if (it) {
-                                                            Icon(
-                                                                painterResource(id = R.drawable.ic_nowplaying_translateon),
-                                                                contentDescription = null,
-                                                                modifier = Modifier
-                                                                    .size(30.dp)
-                                                            )
-                                                        } else {
-                                                            Icon(
-                                                                painterResource(id = R.drawable.ic_nowplaying_translate),
-                                                                contentDescription = null,
-                                                                modifier = Modifier
-                                                                    .size(30.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
+                                            if (!wide) TranslationToggle(translationButtonEnabled.value, translation, toggleTranslation)
                                         }
                                     }
 
@@ -1184,7 +1253,8 @@ private fun Lyric(
 }
 
 @Composable
-private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
+private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?, onOpenPage: (String) -> Unit) {
+    val showMenu = remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .overlayEffect(),
@@ -1253,7 +1323,10 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
                 }
                 .clickable(
                     onClick = {
-
+                        if (musicPlayingLambda() != null) {
+                            Vibrator.click(context)
+                            showMenu.value = true
+                        }
                     },
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() })
@@ -1261,7 +1334,7 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
             contentAlignment = Alignment.Center
         ) {
             AnimatedContent(
-                targetState = false,
+                targetState = showMenu.value,
                 transitionSpec = {
                     fadeIn() togetherWith fadeOut()
                 }) {
@@ -1284,6 +1357,148 @@ private fun ActionButtonsRow(musicPlayingLambda: () -> YosMediaItem?) {
             }
         }
     }
+
+    val music = musicPlayingLambda()
+    if (showMenu.value && music != null) {
+        MoreMenu(music, onOpenPage) { showMenu.value = false }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val pickPlaylist = remember { mutableStateOf(false) }
+    val showInfo = remember { mutableStateOf(false) }
+    val pickTimer = remember { mutableStateOf(false) }
+    // Hide the sheet with its animation, then run the action
+    val closeThen: (() -> Unit) -> Unit = { action ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            onDismiss()
+            action()
+        }
+    }
+    OptionDialog(
+        icon = {},
+        title = music.title ?: "",
+        subTitle = music.artists,
+        bottomSheetState = sheetState,
+        content = {
+            if (pickPlaylist.value) {
+                PlaylistPicker { list -> closeThen { with(PlayListLibrary) { list.addMusic(music) } } }
+            } else if (pickTimer.value) {
+                SleepTimerPicker { action -> closeThen(action) }
+            } else {
+            SelectObjectItem(stringResource(id = R.string.nowplaying_more_add_playlist), {
+                pickPlaylist.value = true
+            }) {}
+            val stopAt = SleepTimer.stopAt.longValue
+            SelectObjectItem(
+                when {
+                    stopAt == SleepTimer.END_OF_SONG -> stringResource(id = R.string.nowplaying_more_sleep_timer_song)
+                    stopAt > 0 -> stringResource(
+                        id = R.string.nowplaying_more_sleep_timer_minutes,
+                        ((stopAt - System.currentTimeMillis() + 59_999) / 60_000).toInt()
+                    )
+                    else -> stringResource(id = R.string.nowplaying_more_sleep_timer)
+                }, { pickTimer.value = true }
+            ) {}
+            val album = music.album
+            if (!album.isNullOrBlank()) {
+                SelectObjectItem(stringResource(id = R.string.nowplaying_more_go_album), {
+                    closeThen {
+                        LibraryObject.setTargetAlbumName(album)
+                        onOpenPage(UI.AlbumInfo)
+                    }
+                }) {}
+            }
+            music.artistsList?.forEach { artist ->
+                SelectObjectItem(stringResource(id = R.string.nowplaying_more_go_artist, artist), {
+                    closeThen {
+                        LibraryObject.setTargetListWithTitle(artist, MusicLibrary.Artist[artist])
+                        onOpenPage(UI.NormalMusic)
+                    }
+                }) {}
+            }
+            val uri = music.uri
+            // Library uris are file://, which Android refuses to hand to other apps: share the MediaStore uri instead
+            val shareUri = music.mediaId?.toLongOrNull()
+                ?.let { ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it) }
+                ?: uri?.takeIf { it.scheme == "content" }
+            if (shareUri != null) {
+                SelectObjectItem(stringResource(id = R.string.nowplaying_more_share), {
+                    closeThen {
+                        val send = Intent(Intent.ACTION_SEND)
+                            .setType(music.mimeType ?: "audio/*")
+                            .putExtra(Intent.EXTRA_STREAM, shareUri)
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        context.startActivity(Intent.createChooser(send, music.title))
+                    }
+                }) {}
+            }
+            SelectObjectItem(stringResource(id = R.string.nowplaying_more_file_info), {
+                showInfo.value = !showInfo.value
+            }) {}
+            if (showInfo.value) {
+                DialogContent(
+                    text = listOfNotNull(
+                        music.mimeType,
+                        formatTime(music.duration / 1000),
+                        music.genre,
+                        (music.releaseYear ?: music.recordingYear)?.toString(),
+                        uri?.let { Uri.decode(it.toString()) }
+                    ).joinToString("\n"),
+                    modifier = Modifier.padding(horizontal = 6.5.dp, vertical = 4.dp)
+                )
+            }
+            }
+        },
+        positiveContent = stringResource(id = R.string.nowplaying_more_close),
+        onPositive = { closeThen {} },
+        onDismissRequest = onDismiss
+    )
+}
+
+@Composable
+private fun SleepTimerPicker(onPick: (() -> Unit) -> Unit) {
+    listOf(15, 30, 45, 60).forEach { minutes ->
+        SelectObjectItem(stringResource(id = R.string.sleep_timer_minutes, minutes), {
+            onPick { SleepTimer.start(minutes) }
+        }) {}
+    }
+    SelectObjectItem(stringResource(id = R.string.sleep_timer_end_of_song), {
+        onPick { SleepTimer.startEndOfSong() }
+    }) {}
+    if (SleepTimer.stopAt.longValue != 0L) {
+        SelectObjectItem(stringResource(id = R.string.sleep_timer_off), {
+            onPick { SleepTimer.cancel() }
+        }) {}
+    }
+}
+
+@Composable
+private fun PlaylistPicker(onPick: (PlayList) -> Unit) {
+    PlayListLibrary.playList.forEach { list ->
+        SelectObjectItem(list.name, { onPick(list) }) {}
+    }
+    val newName = remember { mutableStateOf("") }
+    SearchTextField(
+        text = newName.value,
+        placeholder = stringResource(id = R.string.nowplaying_more_new_playlist),
+        onValueChange = { newName.value = it },
+        onSearch = {
+            val name = newName.value.trim()
+            if (name.isNotEmpty()) {
+                PlayListLibrary.create(name)
+                PlayListLibrary.playList.firstOrNull { it.name == name }?.let(onPick)
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+    )
 }
 
 @Composable
@@ -1291,6 +1506,7 @@ private fun PlayingBar(
     modifier: Modifier,
     albumUrlLambda: () -> Uri?,
     musicPlayingLambda: () -> YosMediaItem?,
+    onOpenPage: (String) -> Unit,
     onAlbumClick: () -> Unit
 ) = YosWrapper {
     Row(
@@ -1340,7 +1556,7 @@ private fun PlayingBar(
         }
 
         YosWrapper {
-            ActionButtonsRow(musicPlayingLambda)
+            ActionButtonsRow(musicPlayingLambda, onOpenPage)
         }
     }
 
