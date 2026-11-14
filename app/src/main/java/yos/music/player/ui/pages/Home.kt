@@ -91,7 +91,8 @@ fun Home(
                 HomeShelf(
                     stringResource(id = R.string.home_recently_played),
                     HistoryLibrary.history.distinctBy { it.uri },
-                    navController
+                    navController,
+                    stringResource(id = R.string.home_recently_played_desc)
                 )
             }
             item("RecentlyAdded") {
@@ -110,13 +111,14 @@ fun Home(
                     }.getOrNull().orEmpty()
                     songs.sortedByDescending { added[it.mediaId] ?: 0L }
                 }
-                HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController)
+                HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController, stringResource(id = R.string.home_recently_added_desc))
             }
             item("Favorites") {
                 HomeShelf(
                     stringResource(id = R.string.page_library_playlists_fav_title),
                     FavPlayListLibrary.favPlayList.reversed(),
-                    navController
+                    navController,
+                    stringResource(id = R.string.home_favorites_desc)
                 )
             }
         })

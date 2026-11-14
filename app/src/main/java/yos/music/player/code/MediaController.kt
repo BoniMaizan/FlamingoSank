@@ -21,6 +21,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -574,6 +575,12 @@ class YosPlaybackService : MediaSessionService() {
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     historyPending = true
+                    // Skips and auto-advance keep playing, so onIsPlayingChanged won't fire: record now
+                    if (forwardingPlayer.isPlaying) {
+                        historyPending = false
+                        mediaItem?.let { HistoryLibrary.record(it.toYosMediaItem()) }
+                    }
+                    SleepTimer.onQueuePosition()
                     /*mediaSession?.let { MediaController.sendNotification(it,context) }*/
                     mediaItem?.let {
                         yos.music.player.code.MediaController.onCase(
@@ -615,6 +622,16 @@ class YosPlaybackService : MediaSessionService() {
                         historyPending = false
                         forwardingPlayer.currentMediaItem?.let { HistoryLibrary.record(it.toYosMediaItem()) }
                     }
+                }
+
+                override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                    super.onTimelineChanged(timeline, reason)
+                    SleepTimer.onQueuePosition()
+                }
+
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    super.onShuffleModeEnabledChanged(shuffleModeEnabled)
+                    SleepTimer.onQueuePosition()
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {

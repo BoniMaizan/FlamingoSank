@@ -3,7 +3,10 @@ package yos.music.player.code.utils.player
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.compose.runtime.mutableStateOf
 import androidx.media3.exoplayer.ExoPlayer
 import yos.music.player.code.utils.player.FadeExo.fadePause
@@ -13,10 +16,14 @@ import yos.music.player.data.libraries.SettingsLibrary
 @Stable
 object SleepTimer {
     const val END_OF_SONG = -1L
+    const val END_OF_QUEUE = -2L
     private const val FADE_MS = 30_000L
 
     // Time (epoch ms) when playback stops, END_OF_SONG, or 0 when off
     val stopAt = mutableLongStateOf(0L)
+
+    // Length picked for a minutes timer, so the picker can show it
+    val minutes = mutableIntStateOf(0)
 
     // Lower the volume over the last 30 seconds instead of stopping at once
     val fadeOut = mutableStateOf(SettingsLibrary.SleepTimerFade)
@@ -38,6 +45,7 @@ object SleepTimer {
         cancel()
         val ms = minutes * 60_000L
         stopAt.longValue = System.currentTimeMillis() + ms
+        this.minutes.intValue = minutes
         if (fadeOut.value && ms > FADE_MS) handler.postDelayed(fade, ms - FADE_MS)
         else handler.postDelayed(stop, ms)
     }
@@ -46,6 +54,21 @@ object SleepTimer {
         cancel()
         stopAt.longValue = END_OF_SONG
         player?.pauseAtEndOfMediaItems = true
+    }
+
+    fun startEndOfQueue() {
+        cancel()
+        stopAt.longValue = END_OF_QUEUE
+        onQueuePosition()
+    }
+
+    // Called when the song or the queue changes: only the last song of the queue pauses at its end
+    fun onQueuePosition() {
+        val p = player ?: return
+        if (stopAt.longValue != END_OF_QUEUE || p.currentTimeline.isEmpty) return
+        p.pauseAtEndOfMediaItems = p.currentTimeline.getNextWindowIndex(
+            p.currentMediaItemIndex, Player.REPEAT_MODE_OFF, p.shuffleModeEnabled
+        ) == C.INDEX_UNSET
     }
 
     fun cancel() {
@@ -70,6 +93,6 @@ object SleepTimer {
 
     // Called when the player paused by itself at the end of a song
     fun onSongEndPause() {
-        if (stopAt.longValue == END_OF_SONG) cancel()
+        if (stopAt.longValue == END_OF_SONG || stopAt.longValue == END_OF_QUEUE) cancel()
     }
 }

@@ -22,6 +22,7 @@ interface UI {
         const val NormalMusic = "NormalMusic"
         const val PlayLists = "PlayLists"
         const val PlayListEdit = "PlayListEdit"
+        const val History = "History"
         const val LocalArtists = "LocalArtists"
         const val LocalAlbums = "LocalAlbums"
 

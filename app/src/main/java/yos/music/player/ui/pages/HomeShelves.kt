@@ -46,7 +46,7 @@ private const val SHELF_SIZE = 20
 
 // A titled row of covers on Home; "See All" opens the whole list in its order
 @Composable
-fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavController) {
+fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavController, subTitle: String? = null) {
     if (list.isEmpty()) return
     val scope = rememberCoroutineScope()
     val shown = list.take(SHELF_SIZE)
@@ -65,8 +65,18 @@ fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavControl
                 text = title,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
-                lineHeight = 20.sp,
-                modifier = Modifier.weight(1f)
+                lineHeight = 20.sp
+            )
+            Text(
+                text = subTitle ?: "",
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 10.dp)
+                    .alpha(0.5f)
             )
             Text(
                 text = stringResource(id = R.string.home_see_all),

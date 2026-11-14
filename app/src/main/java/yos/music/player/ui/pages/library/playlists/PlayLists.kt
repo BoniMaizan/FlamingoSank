@@ -203,7 +203,7 @@ private fun convertToSongList(
 
 // Up to four song covers in a 2x2 grid, like the mockup
 @Composable
-private fun PlayListCover(uris: List<Uri>, modifier: Modifier) {
+internal fun PlayListCover(uris: List<Uri>, modifier: Modifier) {
     val thumbs = remember(uris) {
         uris.mapNotNull { uri -> songs.firstOrNull { it.uri == uri }?.thumb }.distinct().take(4)
     }

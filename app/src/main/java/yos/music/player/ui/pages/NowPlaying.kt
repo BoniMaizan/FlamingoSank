@@ -2,6 +2,24 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.runtime.mutableIntStateOf
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material3.MaterialTheme
+import yos.music.player.data.libraries.defaultTitle
+import yos.music.player.ui.widgets.basic.MenuGroup
+import yos.music.player.ui.widgets.basic.MenuRow
+import yos.music.player.ui.widgets.basic.SheetHeader
+import yos.music.player.ui.widgets.basic.tileColor
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -1374,6 +1392,10 @@ fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, queueActions: Bo
     val pickPlaylist = remember { mutableStateOf(false) }
     val showInfo = remember { mutableStateOf(false) }
     val pickTimer = remember { mutableStateOf(false) }
+    if (pickTimer.value) {
+        SleepTimerSheet(onDismiss)
+        return
+    }
     // Hide the sheet with its animation, then run the action
     val closeThen: (() -> Unit) -> Unit = { action ->
         scope.launch { sheetState.hide() }.invokeOnCompletion {
@@ -1384,85 +1406,108 @@ fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, queueActions: Bo
     OptionDialog(
         icon = {},
         title = music.title ?: "",
-        subTitle = music.artists,
+        header = {
+            SheetHeader(
+                title = music.title ?: defaultTitle,
+                subTitle = listOfNotNull(music.artists, music.album?.takeIf { it.isNotBlank() }).joinToString(" · "),
+                leading = {
+                    AsyncImage(
+                        model = music.thumb, contentDescription = null, contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                    )
+                }
+            )
+        },
         bottomSheetState = sheetState,
         content = {
             if (pickPlaylist.value) {
                 PlaylistPicker { list -> closeThen { with(PlayListLibrary) { list.addMusic(music) } } }
-            } else if (pickTimer.value) {
-                SleepTimerPicker { action -> closeThen(action) }
             } else {
-            if (queueActions && music.uri != MediaController.musicPlaying.value?.uri) {
-                SelectObjectItem(stringResource(id = R.string.song_menu_play_next), {
-                    closeThen { MediaController.enqueue(music, next = true) }
-                }) {}
-                SelectObjectItem(stringResource(id = R.string.song_menu_add_queue), {
-                    closeThen { MediaController.enqueue(music, next = false) }
-                }) {}
-            }
-            SelectObjectItem(stringResource(id = R.string.nowplaying_more_add_playlist), {
-                pickPlaylist.value = true
-            }) {}
-            val stopAt = SleepTimer.stopAt.longValue
-            // The timer is about playback, not this song: only in the player's menu
-            if (!queueActions) SelectObjectItem(
-                when {
-                    stopAt == SleepTimer.END_OF_SONG -> stringResource(id = R.string.nowplaying_more_sleep_timer_song)
-                    stopAt > 0 -> stringResource(
-                        id = R.string.nowplaying_more_sleep_timer_minutes,
-                        ((stopAt - System.currentTimeMillis() + 59_999) / 60_000).toInt()
+                MenuGroup {
+                    if (queueActions && music.uri != MediaController.musicPlaying.value?.uri) {
+                        MenuRow(stringResource(id = R.string.song_menu_play_next), Icons.AutoMirrored.Rounded.PlaylistPlay) {
+                            closeThen { MediaController.enqueue(music, next = true) }
+                        }
+                        MenuRow(stringResource(id = R.string.song_menu_add_queue), Icons.AutoMirrored.Rounded.QueueMusic) {
+                            closeThen { MediaController.enqueue(music, next = false) }
+                        }
+                    }
+                    MenuRow(stringResource(id = R.string.nowplaying_more_add_playlist), Icons.AutoMirrored.Rounded.PlaylistAdd) {
+                        pickPlaylist.value = true
+                    }
+                }
+                MenuGroup {
+                    val stopAt = SleepTimer.stopAt.longValue
+                    // The timer is about playback, not this song: only in the player's menu
+                    if (!queueActions) MenuRow(
+                        when {
+                            stopAt == SleepTimer.END_OF_SONG -> stringResource(id = R.string.nowplaying_more_sleep_timer_song)
+                            stopAt == SleepTimer.END_OF_QUEUE -> stringResource(id = R.string.nowplaying_more_sleep_timer_queue)
+                            stopAt > 0 -> stringResource(
+                                id = R.string.nowplaying_more_sleep_timer_minutes,
+                                ((stopAt - System.currentTimeMillis() + 59_999) / 60_000).toInt()
+                            )
+                            else -> stringResource(id = R.string.nowplaying_more_sleep_timer)
+                        }, Icons.Rounded.Bedtime
+                    ) { pickTimer.value = true }
+                    val album = music.album
+                    if (!album.isNullOrBlank()) {
+                        MenuRow(stringResource(id = R.string.nowplaying_more_go_album), Icons.Rounded.Album) {
+                            closeThen {
+                                LibraryObject.setTargetAlbumName(album)
+                                onOpenPage(UI.AlbumInfo)
+                            }
+                        }
+                    }
+                    music.artistsList?.forEach { artist ->
+                        MenuRow(stringResource(id = R.string.nowplaying_more_go_artist, artist), Icons.Rounded.Person) {
+                            closeThen {
+                                LibraryObject.setTargetListWithTitle(artist, MusicLibrary.Artist[artist])
+                                onOpenPage(UI.NormalMusic)
+                            }
+                        }
+                    }
+                    val uri = music.uri
+                    // Library uris are file://, which Android refuses to hand to other apps: share the MediaStore uri instead
+                    val shareUri = music.mediaId?.toLongOrNull()
+                        ?.let { ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it) }
+                        ?: uri?.takeIf { it.scheme == "content" }
+                    if (shareUri != null) {
+                        MenuRow(stringResource(id = R.string.nowplaying_more_share), Icons.Rounded.Share) {
+                            closeThen {
+                                val send = Intent(Intent.ACTION_SEND)
+                                    .setType(music.mimeType ?: "audio/*")
+                                    .putExtra(Intent.EXTRA_STREAM, shareUri)
+                                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                context.startActivity(Intent.createChooser(send, music.title))
+                            }
+                        }
+                    }
+                    val format = music.mimeType?.substringAfter('/')?.removePrefix("x-")
+                    MenuRow(
+                        stringResource(id = R.string.nowplaying_more_file_info), Icons.Outlined.Info,
+                        trailing = when (format) {
+                            null -> null
+                            "flac", "alac", "wav" -> stringResource(id = R.string.song_menu_lossless)
+                            "mpeg" -> "MP3"
+                            else -> format.uppercase()
+                        }
+                    ) { showInfo.value = !showInfo.value }
+                }
+                if (showInfo.value) {
+                    DialogContent(
+                        text = listOfNotNull(
+                            music.mimeType,
+                            formatTime(music.duration / 1000),
+                            music.genre,
+                            (music.releaseYear ?: music.recordingYear)?.toString(),
+                            music.uri?.let { Uri.decode(it.toString()) }
+                        ).joinToString("\n"),
+                        modifier = Modifier.padding(horizontal = 6.5.dp, vertical = 4.dp)
                     )
-                    else -> stringResource(id = R.string.nowplaying_more_sleep_timer)
-                }, { pickTimer.value = true }
-            ) {}
-            val album = music.album
-            if (!album.isNullOrBlank()) {
-                SelectObjectItem(stringResource(id = R.string.nowplaying_more_go_album), {
-                    closeThen {
-                        LibraryObject.setTargetAlbumName(album)
-                        onOpenPage(UI.AlbumInfo)
-                    }
-                }) {}
-            }
-            music.artistsList?.forEach { artist ->
-                SelectObjectItem(stringResource(id = R.string.nowplaying_more_go_artist, artist), {
-                    closeThen {
-                        LibraryObject.setTargetListWithTitle(artist, MusicLibrary.Artist[artist])
-                        onOpenPage(UI.NormalMusic)
-                    }
-                }) {}
-            }
-            val uri = music.uri
-            // Library uris are file://, which Android refuses to hand to other apps: share the MediaStore uri instead
-            val shareUri = music.mediaId?.toLongOrNull()
-                ?.let { ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, it) }
-                ?: uri?.takeIf { it.scheme == "content" }
-            if (shareUri != null) {
-                SelectObjectItem(stringResource(id = R.string.nowplaying_more_share), {
-                    closeThen {
-                        val send = Intent(Intent.ACTION_SEND)
-                            .setType(music.mimeType ?: "audio/*")
-                            .putExtra(Intent.EXTRA_STREAM, shareUri)
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        context.startActivity(Intent.createChooser(send, music.title))
-                    }
-                }) {}
-            }
-            SelectObjectItem(stringResource(id = R.string.nowplaying_more_file_info), {
-                showInfo.value = !showInfo.value
-            }) {}
-            if (showInfo.value) {
-                DialogContent(
-                    text = listOfNotNull(
-                        music.mimeType,
-                        formatTime(music.duration / 1000),
-                        music.genre,
-                        (music.releaseYear ?: music.recordingYear)?.toString(),
-                        uri?.let { Uri.decode(it.toString()) }
-                    ).joinToString("\n"),
-                    modifier = Modifier.padding(horizontal = 6.5.dp, vertical = 4.dp)
-                )
-            }
+                }
             }
         },
         positiveContent = stringResource(id = R.string.nowplaying_more_close),
@@ -1471,33 +1516,10 @@ fun MoreMenu(music: YosMediaItem, onOpenPage: (String) -> Unit, queueActions: Bo
     )
 }
 
-@Composable
-private fun SleepTimerPicker(onPick: (() -> Unit) -> Unit) {
-    listOf(15, 30, 45, 60).forEach { minutes ->
-        SelectObjectItem(stringResource(id = R.string.sleep_timer_minutes, minutes), {
-            onPick { SleepTimer.start(minutes) }
-        }) {}
-    }
-    SelectObjectItem(stringResource(id = R.string.sleep_timer_end_of_song), {
-        onPick { SleepTimer.startEndOfSong() }
-    }) {}
-    if (SleepTimer.stopAt.longValue != 0L) {
-        SelectObjectItem(stringResource(id = R.string.sleep_timer_off), {
-            onPick { SleepTimer.cancel() }
-        }) {}
-    }
-    SwitchItem(
-        title = stringResource(id = R.string.sleep_timer_fade),
-        desc = stringResource(id = R.string.sleep_timer_fade_desc),
-        onClick = { SleepTimer.setFadeOut(!SleepTimer.fadeOut.value) },
-        checkedLambda = { SleepTimer.fadeOut.value }
-    )
-}
-
-// Opened by the moon button under the player
+// Opened by the moon button under the player and by the "…" menu: pick a length, then start it
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SleepTimerSheet(onDismiss: () -> Unit) {
+fun SleepTimerSheet(onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val closeThen: (() -> Unit) -> Unit = { action ->
@@ -1506,21 +1528,82 @@ private fun SleepTimerSheet(onDismiss: () -> Unit) {
             action()
         }
     }
+    val stopAt = SleepTimer.stopAt.longValue
+    // Choices: minutes, -1 end of song, -2 end of queue, 0 none
+    val running = when {
+        stopAt == SleepTimer.END_OF_SONG -> -1
+        stopAt == SleepTimer.END_OF_QUEUE -> -2
+        stopAt > 0 -> SleepTimer.minutes.intValue
+        else -> 0
+    }
+    val choice = remember { mutableIntStateOf(running) }
+    val options = listOf(15, 30, 45, 60).map { it to stringResource(id = R.string.sleep_timer_minutes, it) } +
+            listOf(
+                -1 to stringResource(id = R.string.sleep_timer_end_of_song),
+                -2 to stringResource(id = R.string.sleep_timer_end_of_queue)
+            )
+    val picked = options.firstOrNull { it.first == choice.intValue }
+    // Picking what already runs changes nothing, so the button only closes
+    val starts = picked != null && choice.intValue != running
     OptionDialog(
         icon = {},
         title = stringResource(id = R.string.nowplaying_more_sleep_timer),
+        header = {
+            SheetHeader(
+                title = stringResource(id = R.string.nowplaying_more_sleep_timer),
+                subTitle = stringResource(id = R.string.sleep_timer_subtitle),
+                centered = true,
+                leading = {
+                    Icon(
+                        painterResource(id = R.drawable.ic_nowplaying_sleepon), null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(34.dp)
+                    )
+                }
+            )
+        },
         bottomSheetState = sheetState,
-        content = { SleepTimerPicker { action -> closeThen(action) } },
-        positiveContent = stringResource(id = R.string.nowplaying_more_close),
-        onPositive = { closeThen {} },
+        content = {
+            MenuGroup {
+                options.forEach { (key, label) ->
+                    MenuRow(label, selected = choice.intValue == key) { choice.intValue = key }
+                }
+            }
+            if (stopAt != 0L) MenuGroup {
+                MenuRow(stringResource(id = R.string.sleep_timer_off)) { closeThen { SleepTimer.cancel() } }
+            }
+            MenuGroup {
+                Column(Modifier.background(tileColor())) {
+                    SwitchItem(
+                        title = stringResource(id = R.string.sleep_timer_fade),
+                        desc = stringResource(id = R.string.sleep_timer_fade_desc),
+                        onClick = { SleepTimer.setFadeOut(!SleepTimer.fadeOut.value) },
+                        checkedLambda = { SleepTimer.fadeOut.value }
+                    )
+                }
+            }
+        },
+        positiveContent = if (starts) stringResource(id = R.string.sleep_timer_start, picked!!.second)
+        else stringResource(id = R.string.nowplaying_more_close),
+        onPositive = {
+            closeThen {
+                if (starts) when (val c = choice.intValue) {
+                    -1 -> SleepTimer.startEndOfSong()
+                    -2 -> SleepTimer.startEndOfQueue()
+                    else -> SleepTimer.start(c)
+                }
+            }
+        },
         onDismissRequest = onDismiss
     )
 }
 
 @Composable
 private fun PlaylistPicker(onPick: (PlayList) -> Unit) {
-    PlayListLibrary.playList.forEach { list ->
-        SelectObjectItem(list.name, { onPick(list) }) {}
+    MenuGroup {
+        PlayListLibrary.playList.forEach { list ->
+            MenuRow(list.name, Icons.AutoMirrored.Rounded.QueueMusic) { onPick(list) }
+        }
     }
     val newName = remember { mutableStateOf("") }
     SearchTextField(

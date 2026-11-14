@@ -10,7 +10,6 @@ import androidx.navigation.NavController
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import yos.music.player.R
-import yos.music.player.data.libraries.HistoryLibrary
 import yos.music.player.data.libraries.MusicLibrary.songs
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.UI
@@ -87,9 +86,7 @@ fun Library(navController: NavController) =
                             icon = painterResource(id = R.drawable.ic_library_link_icon_history),
                             label = targetTitle
                         ) {
-                            // The song list keys rows by song, so each song shows once, at its latest listen
-                            LibraryObject.setTargetListWithTitle(targetTitle, HistoryLibrary.history.distinctBy { it.uri }, keepOrder = true)
-                            navController.toUI(UI.NormalMusic)
+                            navController.toUI(UI.History)
                         }
                     }
 

@@ -4,6 +4,7 @@ import android.net.Uri
 import android.os.Parcelable
 import androidx.compose.runtime.Stable
 import com.funny.data_saver.core.mutableDataSaverListStateOf
+import com.funny.data_saver.core.mutableDataSaverStateOf
 import kotlinx.parcelize.Parcelize
 import yos.music.player.data.PlayListSaver
 import java.util.UUID
@@ -81,12 +82,27 @@ object HistoryLibrary {
     )
         private set
 
+    // When each entry of history was played (epoch ms, comma separated, same order).
+    // Entries recorded before this existed have no time
+    @Stable
+    var times by mutableDataSaverStateOf(dataSaverInterface = PlayListSaver, key = "yos_listen_history_times", initialValue = "")
+        private set
+
+    fun timeList(): List<Long?> {
+        val list = times.split(",").map { it.toLongOrNull() }
+        return List(history.size) { list.getOrNull(it) }
+    }
+
     fun record(music: YosMediaItem) {
-        if (SettingsLibrary.ListenHistory) history = (listOf(music) + history).take(MAX_ENTRIES)
+        if (!SettingsLibrary.ListenHistory) return
+        val old = timeList()
+        history = (listOf(music) + history).take(MAX_ENTRIES)
+        times = (listOf(System.currentTimeMillis()) + old).take(MAX_ENTRIES).joinToString(",") { it?.toString() ?: "" }
     }
 
     fun clear() {
         history = listOf()
+        times = ""
     }
 }
 

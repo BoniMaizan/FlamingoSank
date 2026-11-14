@@ -168,6 +168,7 @@ fun OptionDialog(
     icon: @Composable () -> Unit,
     title: String,
     subTitle: String? = null,
+    header: (@Composable () -> Unit)? = null,
     content: (@Composable () -> Unit)?,
     positiveContent: String,
     negativeContent: String? = null,
@@ -185,7 +186,7 @@ fun OptionDialog(
         cornerRadius = cornerRadius
     ) {
         // println(cornerRadius())
-        DialogTitle(icon = icon, title = title, subTitle = subTitle)
+        if (header != null) header() else DialogTitle(icon = icon, title = title, subTitle = subTitle)
         Column(
             Modifier
                 .fillMaxWidth()

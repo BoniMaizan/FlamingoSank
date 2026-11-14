@@ -124,6 +124,7 @@ import yos.music.player.ui.pages.NowPlaying
 import yos.music.player.ui.pages.NowPlayingPage.Album
 import yos.music.player.ui.pages.library.Library
 import yos.music.player.ui.pages.library.NormalMusic
+import yos.music.player.ui.pages.library.History
 import yos.music.player.ui.pages.library.albums.AlbumInfo
 import yos.music.player.ui.pages.library.albums.LocalAlbums
 import yos.music.player.ui.pages.library.artists.LocalArtists
@@ -444,6 +445,9 @@ class MainActivity : BaseActivity() {
                                             }
                                             composable(UI.PlayListEdit) {
                                                 PlayListEdit(navController)
+                                            }
+                                            composable(UI.History) {
+                                                History(navController)
                                             }
                                             composable(UI.NormalMusic) {
                                                 NormalMusic(navController)
