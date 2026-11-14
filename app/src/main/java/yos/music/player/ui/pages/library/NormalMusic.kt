@@ -22,6 +22,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import yos.music.player.ui.pages.isWideLayout
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
@@ -171,7 +178,10 @@ fun NormalMusic(navController: NavController) {
                     }, buttonPosition.value)
                 }
 
+                val wide = isWideLayout()
+                val listState = rememberLazyListState()
                 Title(
+                    listState = listState,
                     title = pageInfo.first, onBack = {
                         navController.popBackStack()
                     },
@@ -244,7 +254,19 @@ fun NormalMusic(navController: NavController) {
                         }
                     }
 
-                    itemsIndexed(
+                    // Tablets: two songs per row
+                    if (wide) itemsIndexed(list.value.chunked(2), key = { _, row -> row.first() }) { _, row ->
+                        Row(Modifier.padding(end = 28.dp)) {
+                            row.forEach { music ->
+                                Box(Modifier.weight(1f)) {
+                                    MusicList(music, onLongClick = { menuSong.value = music }) {
+                                        scope.launch(Dispatchers.IO) { MediaController.prepare(music, list.value) }
+                                    }
+                                }
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    } else itemsIndexed(
                         list.value,
                         key = { _, music -> music }
                     ) { index, music ->
@@ -278,6 +300,13 @@ fun NormalMusic(navController: NavController) {
                     /*item("blank") {
                     Spacer(modifier = Modifier.navigationBarsHeight(15.dp))
                 }*/
+                }
+                if (wide && !keepOrder) AlphabetIndex(
+                    songs = list.value,
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) { songIndex ->
+                    // the title, search field and buttons come before the rows
+                    scope.launch { listState.scrollToItem(3 + songIndex / 2) }
                 }
             }
         }
@@ -502,3 +531,39 @@ fun FloatingMenuDivider() =
     Spacer(
         modifier = Modifier.height(8.dp)
     )
+
+private fun indexLetter(song: YosMediaItem): Char {
+    val c = Pinyin.toPinyin((song.title ?: defaultTitle).firstOrNull() ?: '#').firstOrNull()?.uppercaseChar() ?: '#'
+    return if (c in 'A'..'Z') c else '#'
+}
+
+// A–Z strip: tap or slide a finger to jump to the first song of that letter
+@Composable
+private fun AlphabetIndex(songs: List<YosMediaItem>, modifier: Modifier, onJump: (Int) -> Unit) {
+    val first = remember(songs) {
+        buildMap { songs.forEachIndexed { i, s -> putIfAbsent(indexLetter(s), i) } }
+    }
+    val letters = listOf('#') + ('A'..'Z')
+    val height = remember { mutableStateOf(1) }
+    val jump: (Float) -> Unit = { y ->
+        val at = (y / height.value * letters.size).toInt().coerceIn(0, letters.size - 1)
+        // a letter without songs jumps to the next one that has some
+        letters.drop(at).firstNotNullOfOrNull { first[it] }?.let(onJump)
+    }
+    Column(
+        modifier
+            .padding(end = 4.dp)
+            .onSizeChanged { height.value = it.height }
+            .pointerInput(first) { detectTapGestures { jump(it.y) } }
+            .pointerInput(first) { detectVerticalDragGestures { change, _ -> jump(change.position.y) } },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        letters.forEach { l ->
+            Text(
+                l.toString(), fontSize = 11.sp, lineHeight = 15.sp, fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = if (l in first) 1f else 0.35f),
+                modifier = Modifier.padding(horizontal = 6.dp)
+            )
+        }
+    }
+}

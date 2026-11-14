@@ -146,6 +146,10 @@ import yos.music.player.ui.theme.YosRoundedCornerShape
 import yos.music.player.ui.theme.isFlamingoInDarkMode
 import yos.music.player.ui.theme.withNight
 import yos.music.player.ui.widgets.basic.BottomNavigator
+import androidx.compose.foundation.layout.navigationBarsPadding
+import yos.music.player.ui.pages.isWideLayout
+import yos.music.player.ui.pages.SideBarWidth
+import yos.music.player.ui.pages.SideBar
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.NavItem
 import yos.music.player.ui.widgets.basic.ShadowImageWithCache
@@ -204,6 +208,7 @@ class MainActivity : BaseActivity() {
                     ) {*/
                         println("重组：主载体")
                         val miniPlayerHeight = 62.dp
+                        val wide = isWideLayout()
                         val height = remember("MainActivity_height") { mutableIntStateOf(0) }
 
                         val navHeight = remember("MainActivity_navHeight") {
@@ -378,7 +383,7 @@ class MainActivity : BaseActivity() {
                                                 easing = EaseOutQuart
                                             )
                                         AnimatedNavHost(
-                                            modifier = Modifier.then(
+                                            modifier = Modifier.padding(start = if (wide) SideBarWidth else 0.dp).then(
                                                 if (SettingsLibrary.BarBlurEffect && !showNowPlaying.value) {
                                                     Modifier.haze(state = hazeState)
                                                 } else {
@@ -525,6 +530,7 @@ class MainActivity : BaseActivity() {
                                         if (!showNowPlaying.value && SettingsLibrary.BarBlurEffect) {
                                             Spacer(
                                                 modifier = Modifier
+                                                    .padding(start = if (wide) SideBarWidth else 0.dp)
                                                     .fillMaxWidth()
                                                     .navigationBarsHeight(128.dp)
                                                     .graphicsLayer {
@@ -569,6 +575,7 @@ class MainActivity : BaseActivity() {
                                             //println("haze 底栏效果关闭")
                                             Spacer(
                                                 modifier = Modifier
+                                                    .padding(start = if (wide) SideBarWidth else 0.dp)
                                                     .fillMaxWidth()
                                                     .navigationBarsHeight(128.dp)
                                                     .background(
@@ -590,7 +597,25 @@ class MainActivity : BaseActivity() {
                                             )
                                         }
 
-                                        BottomNavigator(
+                                        if (wide) {
+                                            SideBar(
+                                                navController = navController,
+                                                route = route.value,
+                                                onHome = {
+                                                    nowLabel.value = defaultHome
+                                                    scope.launch { pagerState.scrollToPage(0) }
+                                                    navController.popBackStack(UI.HomePage, false)
+                                                },
+                                                modifier = Modifier.align(Alignment.CenterStart)
+                                            )
+                                            // No tab bar: a small inset keeps the mini player above the gesture bar
+                                            Spacer(
+                                                Modifier
+                                                    .navigationBarsPadding()
+                                                    .height(6.dp)
+                                                    .onSizeChanged { height.intValue = it.height }
+                                            )
+                                        } else BottomNavigator(
                                             nowLabel = { nowLabel.value },
                                             onLabelChange = {
                                                 nowLabel.value = it
@@ -667,6 +692,13 @@ class MainActivity : BaseActivity() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .layout { measurable, constraints ->
+                                        // Read in layout, not composition, so dragging the player doesn't recompose
+                                        val inset = if (wide) (SideBarWidth.roundToPx() * yosBottomSheetConfig.menuAlpha).toInt() else 0
+                                        val w = constraints.maxWidth - inset
+                                        val placeable = measurable.measure(constraints.copy(minWidth = w, maxWidth = w))
+                                        layout(constraints.maxWidth, placeable.height) { placeable.place(inset, 0) }
+                                    }
                                     .onSizeChanged {
                                         parentHeight.intValue = it.height
                                     }

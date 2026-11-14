@@ -2,6 +2,7 @@
 
 package yos.music.player.ui.pages
 
+import yos.music.player.ui.widgets.basic.Segmented
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
 import androidx.compose.material.icons.automirrored.rounded.PlaylistPlay
@@ -418,6 +419,8 @@ fun NowPlaying(
                     Modifier
                         .fillMaxSize()
                         .then(sideModifier)
+                        // room for the Lyrics / Up Next tabs
+                        .then(if (wide) Modifier.padding(top = 80.dp) else Modifier)
                         .graphicsLayer {
                             compositingStrategy =
                                 CompositingStrategy.ModulateAlpha
@@ -443,8 +446,7 @@ fun NowPlaying(
                         translationButtonEnabled.value, translation, toggleTranslation,
                         Modifier
                             .align(Alignment.TopEnd)
-                            .statusBarsPadding()
-                            .padding(top = 48.dp)
+                            .padding(top = 4.dp)
                     )
                 }
             }
@@ -626,17 +628,43 @@ fun NowPlaying(
                         Modifier
                             .fillMaxSize()
                             .then(sideModifier)
-                            .statusBarsPadding()
-                            .padding(top = 40.dp)
+                            .padding(top = 80.dp)
                     ) {
                         PlayingList(
                             shuffleModeEnabledLambda = { shuffleModeEnabled.value },
                             shuffleModeOnChanged = { shuffleModeEnabled.value = it },
                             repeatModeLambda = { repeatMode.intValue },
                             repeatModeOnChanged = { repeatMode.intValue = it },
-                            thisMusicPlayingLambda = { thisMusicPlaying.value }
+                            thisMusicPlayingLambda = { thisMusicPlaying.value },
+                            fullHeight = true
                         )
                     }
+                }
+            }
+
+            // Wide mode: tabs above the side pane to switch between lyrics and the queue
+            if (wide) AnimatedVisibility(
+                visible = nowPageLambda() != Album,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .then(sideModifier)
+                        // the player has no status bar inset here, so leave room for it by hand
+                        .padding(top = 34.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    Segmented(
+                        options = listOf(
+                            stringResource(id = R.string.nowplaying_tab_lyrics),
+                            stringResource(id = R.string.nowplaying_tab_up_next)
+                        ),
+                        selected = if (nowPageLambda() == Lyric) 0 else 1,
+                        onSelect = { nowPageOnChanged(if (it == 0) Lyric else PlayingList) },
+                        modifier = Modifier.width(320.dp)
+                    )
                 }
             }
 
@@ -826,7 +854,9 @@ private fun PlayingList(
     shuffleModeOnChanged: (Boolean) -> Unit,
     repeatModeLambda: () -> Int,
     repeatModeOnChanged: (Int) -> Unit,
-    thisMusicPlayingLambda: () -> YosMediaItem?
+    thisMusicPlayingLambda: () -> YosMediaItem?,
+    // the wide side pane has the whole height; on phones the controls sit below
+    fullHeight: Boolean = false
 ) {
     val context = LocalContext.current
 
@@ -840,7 +870,7 @@ private fun PlayingList(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.545f),
+                .fillMaxHeight(if (fullHeight) 0.92f else 0.545f),
         ) {
             val hide = remember("PlayingList_hide") {
                 derivedStateOf {

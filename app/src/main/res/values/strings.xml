@@ -15,6 +15,8 @@
     <string name="home_recently_added">Recently Added</string>
     <string name="home_see_all">See All</string>
     <string name="song_menu_play_next">Play Next</string>
+    <string name="nowplaying_tab_lyrics">Lyrics</string>
+    <string name="nowplaying_tab_up_next">Up Next</string>
     <string name="song_menu_add_queue">Add to Queue</string>
     <string name="playlist_unavailable_title">Unable to Display Playlist</string>
     <string name="tip_scanning">Pulling songs from the library…</string>

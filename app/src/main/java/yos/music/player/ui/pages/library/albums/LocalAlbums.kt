@@ -111,7 +111,7 @@ fun LocalAlbums(
                     navController.popBackStack()
                 }
             ) {
-                item("SearchField", span = { GridItemSpan(2) }) {
+                item("SearchField", span = { GridItemSpan(maxLineSpan) }) {
                     val keyboardController = LocalSoftwareKeyboardController.current
 
                     SearchTextField(

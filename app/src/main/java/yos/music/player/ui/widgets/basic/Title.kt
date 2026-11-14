@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -160,6 +161,7 @@ fun Title(
     onRightIcon: (() -> Unit)? = null,
     rightBarIcon: @Composable (RowScope.() -> Unit)? = null,
     bottomPadding: Dp = 134.dp,
+    listState: LazyListState? = null,
     content: LazyListScope.() -> Unit
 ) =
     BaseTitle(
@@ -171,6 +173,7 @@ fun Title(
         rightBarIcon = rightBarIcon,
         grid = false,
         bottomPadding = bottomPadding,
+        listState = listState,
         content = content
     )
 
@@ -208,6 +211,7 @@ private fun BaseTitle(
     columns: () -> Int = { 2 },
     grid: Boolean,
     bottomPadding: Dp = 134.dp,
+    listState: LazyListState? = null,
     content: Any
 ) {
     if (grid) {
@@ -230,6 +234,7 @@ private fun BaseTitle(
             onRightIcon = onRightIcon,
             rightBarIcon = rightBarIcon,
             bottomPadding = bottomPadding,
+            listState = listState,
             content = content as LazyListScope.() -> Unit
         )
     }
@@ -260,7 +265,8 @@ private fun BaseTitleGrid(
                 .haze(hazeState)
                 .overScrollVertical(),
             flingBehavior = rememberOverscrollFlingBehavior { state },
-            columns = GridCells.Fixed(columns()),
+            // Tablets get as many ~190dp columns as fit, phones keep the given count
+            columns = if (LocalConfiguration.current.screenWidthDp >= 600) GridCells.Adaptive(190.dp) else GridCells.Fixed(columns()),
             horizontalArrangement = Arrangement.spacedBy(15.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
             contentPadding = PaddingValues(
@@ -269,7 +275,7 @@ private fun BaseTitleGrid(
                 top = 54.dp
             )
         ) {
-            item(key = "title", span = { GridItemSpan(columns()) }) {
+            item(key = "title", span = { GridItemSpan(maxLineSpan) }) {
                 Column {
                     Spacer(modifier = Modifier.statusBarsHeight())
                     TitleItem(
@@ -283,7 +289,7 @@ private fun BaseTitleGrid(
                 }
             }
             content()
-            item("navbar", span = { GridItemSpan(columns()) }) {
+            item("navbar", span = { GridItemSpan(maxLineSpan) }) {
                 Spacer(modifier = Modifier.navigationBarsHeight(134.dp))
             }
         }
@@ -307,9 +313,10 @@ private fun BaseTitleList(
     onRightIcon: (() -> Unit)? = null,
     rightBarIcon: @Composable (RowScope.() -> Unit)? = null,
     bottomPadding: Dp = 134.dp,
+    listState: LazyListState? = null,
     content: LazyListScope.() -> Unit
 ) {
-    val state = rememberLazyListState()
+    val state = listState ?: rememberLazyListState()
     val alpha = rememberAlpha(state)
     val showSmallTitle = rememberShowSmallTitle(alpha, state)
 

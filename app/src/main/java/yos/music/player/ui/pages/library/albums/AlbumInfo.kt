@@ -65,6 +65,9 @@ import yos.music.player.data.libraries.defaultArtistsName
 import yos.music.player.data.libraries.defaultTitle
 import yos.music.player.data.objects.LibraryObject
 import yos.music.player.ui.theme.withNight
+import yos.music.player.ui.pages.isWideLayout
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.ShadowImage
 import yos.music.player.ui.widgets.basic.Title
@@ -147,15 +150,7 @@ fun AlbumInfo(
 
             val scope = rememberCoroutineScope()
 
-            LazyColumn(
-                state = state,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .overScrollVertical(),
-                flingBehavior = rememberOverscrollFlingBehavior { state },
-                contentPadding = PaddingValues(bottom = 18.dp, top = 54.dp)
-            ) {
-                item("AlbumInfo") {
+            val header: @Composable () -> Unit = {
                     Column(
                         Modifier
                             .fillMaxWidth()
@@ -250,7 +245,27 @@ fun AlbumInfo(
                             }
                         }
                     }
-                }
+            }
+            val wide = isWideLayout()
+            Row(Modifier.fillMaxSize()) {
+            // Tablets: cover and buttons stay on the left while the tracks scroll on the right
+            if (wide) Column(
+                Modifier
+                    .width(380.dp)
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 54.dp, bottom = 134.dp)
+            ) { header() }
+            LazyColumn(
+                state = state,
+                modifier = Modifier
+                    .then(if (wide) Modifier.weight(1f) else Modifier)
+                    .fillMaxSize()
+                    .overScrollVertical(),
+                flingBehavior = rememberOverscrollFlingBehavior { state },
+                contentPadding = PaddingValues(bottom = 18.dp, top = 54.dp)
+            ) {
+                if (!wide) item("AlbumInfo") { header() }
 
                 item {
                     AlbumDivider()
@@ -312,6 +327,7 @@ fun AlbumInfo(
                 }
             }
 
+            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
