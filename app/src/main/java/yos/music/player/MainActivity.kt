@@ -222,6 +222,11 @@ class MainActivity : BaseActivity() {
                     ) {*/
                         println("重组：主载体")
                         val wide = isWideLayout()
+                        // all artists' pictures, fetched once in the background so they show offline too
+                        LaunchedEffect(Unit) {
+                            delay(5_000)
+                            yos.music.player.data.libraries.ArtistArt.prefetch(applicationContext, MusicLibrary.artists)
+                        }
                         // tablets: a taller bar with bigger cover and buttons
                         val miniPlayerHeight = if (wide) 76.dp else 62.dp
                         val settingsRoutes = remember {
