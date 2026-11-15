@@ -2,6 +2,11 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.rounded.DragHandle
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
@@ -461,6 +466,7 @@ fun NowPlaying(
                     println("重组：YosLyricView 外层 3")
 
                     Lyric(
+                        wide = wide,
                         lrcEntries = { lrcEntries.value },
                         weightLambda = { showControl.value && !wide },
                         translationLambda = { translation.value },
@@ -471,13 +477,6 @@ fun NowPlaying(
                         },
                         mainViewModel = mainViewModel,
                         mediaViewModel = mediaViewModel
-                    )
-                    // Wide mode: next to the lyrics; under the title row it would cover the "…" button
-                    if (wide) TranslationToggle(
-                        translationButtonEnabled.value, translation, toggleTranslation,
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 16.dp)
                     )
                 }
             }
@@ -708,13 +707,20 @@ fun NowPlaying(
                         onSelect = { nowPageOnChanged(tabs[it]) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, end = 116.dp)
+                            .padding(start = 16.dp, end = 160.dp)
                     )
-                    Box(
+                    Row(
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(end = 16.dp)
+                            .padding(end = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // translation: only for lyrics, its place is kept so the tabs don't resize
+                        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                            if (nowPageLambda() == Lyric) TranslationToggle(
+                                translationButtonEnabled.value, translation, toggleTranslation
+                            )
+                        }
                         QueueModeButtons(
                             shuffleModeEnabledLambda = { shuffleModeEnabled.value },
                             shuffleModeOnChanged = { shuffleModeEnabled.value = it },
@@ -955,10 +961,15 @@ private fun PlayingList(
                 val favTitle = stringResource(id = R.string.page_library_playlists_fav_title)
                 val songsTitle = stringResource(id = R.string.page_library_songs)
                 val source = remember(musicList.value) { queueSource(musicList.value, favTitle, songsTitle) }
-                if (fullHeight && source != null) Text(
+                // tablets: one line; the song count when the queue matches no playlist, album or library
+                val total = stringResource(id = R.string.page_library_playlists_music_total, musicList.value?.size ?: 0)
+                val playingFrom = stringResource(id = R.string.nowplaying_playing_from)
+                if (fullHeight) Text(
                     text = buildAnnotatedString {
-                        append(stringResource(id = R.string.nowplaying_playing_from) + " ")
-                        withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Medium)) { append(source) }
+                        if (source == null) append(total) else {
+                            append("$playingFrom ")
+                            withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Medium)) { append(source) }
+                        }
                     },
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.6f),
@@ -1047,6 +1058,21 @@ private fun PlayingList(
                     initialFirstVisibleItemScrollOffset = -15
                 )
 
+                // drag to reorder: the order shown while a song is held, written back on release
+                val dragged = remember { mutableStateOf<YosMediaItem?>(null) }
+                val dragFrom = remember { mutableIntStateOf(-1) }
+                val dragOffset = remember { mutableFloatStateOf(0f) }
+                val dragOrder = remember { mutableStateOf<List<YosMediaItem>?>(null) }
+                val itemPx = with(LocalDensity.current) { 64.dp.toPx() }
+                val endDrag: (Boolean) -> Unit = { commit ->
+                    val music = dragged.value
+                    val to = music?.let { dragOrder.value?.indexOf(it) } ?: -1
+                    if (commit && to >= 0) MediaController.move(dragFrom.intValue, to)
+                    dragged.value = null
+                    dragOrder.value = null
+                    dragOffset.floatValue = 0f
+                }
+
                 YosWrapper {
                     CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
 
@@ -1089,12 +1115,45 @@ private fun PlayingList(
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             items(
-                                musicList.value ?: emptyList(),
+                                dragOrder.value ?: musicList.value ?: emptyList(),
                                 key = { music -> music }/*,
                                 contentType = { _ -> "NowPlaying_item" }*/
                             ) { music ->
+                                val handle = Modifier.pointerInput(music) {
+                                    detectDragGestures(
+                                        onDragStart = {
+                                            val list = musicList.value.orEmpty()
+                                            dragged.value = music
+                                            dragFrom.intValue = list.indexOf(music)
+                                            dragOrder.value = list
+                                        },
+                                        onDrag = { change, amount ->
+                                            change.consume()
+                                            dragOffset.floatValue += amount.y
+                                            val list = dragOrder.value ?: return@detectDragGestures
+                                            val i = list.indexOf(music)
+                                            val target = when {
+                                                dragOffset.floatValue > itemPx / 2 && i < list.lastIndex -> i + 1
+                                                dragOffset.floatValue < -itemPx / 2 && i > 0 -> i - 1
+                                                else -> i
+                                            }
+                                            if (target != i) {
+                                                dragOrder.value = list.toMutableList().apply { add(target, removeAt(i)) }
+                                                dragOffset.floatValue -= (target - i) * itemPx
+                                            }
+                                        },
+                                        onDragEnd = { endDrag(true) },
+                                        onDragCancel = { endDrag(false) }
+                                    )
+                                }
                                 SmallMusicListItem(
-                                    music
+                                    music,
+                                    if (dragged.value == music) Modifier
+                                        .zIndex(1f)
+                                        .graphicsLayer { translationY = dragOffset.floatValue }
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                    else Modifier.animateItem(),
+                                    handle
                                 ) {
                                     scope.launch(Dispatchers.IO) {
                                         MediaController.prepare(
@@ -1116,9 +1175,14 @@ private fun PlayingList(
 }
 
 @Composable
-private fun LazyItemScope.SmallMusicListItem(music: YosMediaItem, itemClick: () -> Unit) {
+private fun LazyItemScope.SmallMusicListItem(
+    music: YosMediaItem,
+    modifier: Modifier,
+    handle: Modifier,
+    itemClick: () -> Unit
+) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .height(64.dp)
             .fillMaxWidth()
             .clickable {
@@ -1137,7 +1201,11 @@ private fun LazyItemScope.SmallMusicListItem(music: YosMediaItem, itemClick: () 
             imageQuality = ImageQuality.LOW
         )
 
-        Column(Modifier.padding(start = 14.dp)) {
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(start = 14.dp)
+        ) {
             Text(
                 text = music.title ?: defaultTitle,
                 modifier = Modifier.padding(bottom = 1.dp),
@@ -1156,11 +1224,20 @@ private fun LazyItemScope.SmallMusicListItem(music: YosMediaItem, itemClick: () 
                 lineHeight = 11.5.sp,
             )
         }
+        Icon(
+            Icons.Rounded.DragHandle,
+            contentDescription = "Reorder",
+            modifier = handle
+                .padding(start = 8.dp)
+                .size(28.dp)
+                .alpha(0.4f)
+        )
     }
 }
 
 @Composable
 private fun Lyric(
+    wide: Boolean,
     lrcEntries: () -> List<List<Pair<Float, String>>>,
     weightLambda: () -> Boolean,
     translationLambda: () -> Boolean,
@@ -1180,7 +1257,8 @@ private fun Lyric(
         YosWrapper {
             println("重组：YosLyricView 外层 1")
 
-            Spacer(modifier = Modifier.statusBarsHeight(110.dp))
+            // phones keep room for the title above; tablets have the tabs instead
+            if (!wide) Spacer(modifier = Modifier.statusBarsHeight(110.dp))
 
 
             YosLyricView(

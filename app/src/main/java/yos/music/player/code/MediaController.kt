@@ -266,6 +266,19 @@ object MediaController {
     }
 
     // Play Next / Add to Queue. A song already queued is moved, never duplicated (the queue list keys by song)
+    // Up Next drag and drop: move one song, keeping the player and the saved queue in step
+    fun move(from: Int, to: Int) {
+        val controller = mediaControl ?: return
+        val list = playingMusicList.value.orEmpty()
+        if (from == to || from !in list.indices || to !in list.indices) return
+        val newList = list.toMutableList().apply { add(to, removeAt(from)) }
+        controller.moveMediaItem(from, to)
+        playingMusicList.value = newList
+        CoroutineScope(Dispatchers.IO).launch {
+            MusicLibrary.updatePlayList(PlayListV1(mainMusicList, newList))
+        }
+    }
+
     fun enqueue(music: YosMediaItem, next: Boolean) {
         val controller = mediaControl ?: return
         val list = playingMusicList.value.orEmpty()
