@@ -442,8 +442,13 @@ fun NowPlaying(
                     Modifier
                         .fillMaxSize()
                         .then(sideModifier)
-                        // room for the Lyrics / Up Next tabs
-                        .then(if (wide) Modifier.padding(top = 80.dp) else Modifier)
+                        // room for the tabs above, and kept inside the dark card
+                        .then(
+                            if (wide) Modifier
+                                .padding(top = 80.dp, bottom = 24.dp)
+                                .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
+                            else Modifier
+                        )
                         .graphicsLayer {
                             compositingStrategy =
                                 CompositingStrategy.ModulateAlpha
@@ -469,7 +474,7 @@ fun NowPlaying(
                         translationButtonEnabled.value, translation, toggleTranslation,
                         Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 4.dp)
+                            .padding(top = 4.dp, end = 16.dp)
                     )
                 }
             }
