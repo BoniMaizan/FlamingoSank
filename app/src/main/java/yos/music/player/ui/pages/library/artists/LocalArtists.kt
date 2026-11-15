@@ -301,7 +301,9 @@ private fun ArtistTile(artist: String, modifier: Modifier, onClick: () -> Unit) 
     val songs = remember(artist) { MusicLibrary.Artist[artist] }
     val thumb = songs.firstOrNull()?.thumb
     val photo = remember(artist) { mutableStateOf<String?>(null) }
-    LaunchedEffect(artist) { photo.value = ArtistArt.get(context, artist)?.let { it.thumb ?: it.photo } }
+    LaunchedEffect(artist) {
+        photo.value = ArtistArt.get(context, artist)?.let { it.thumb ?: it.photo }?.let { ArtistArt.local(context, it) }
+    }
     Box(
         Modifier
             .fillMaxWidth(0.86f)

@@ -70,7 +70,11 @@ fun ArtistInfo(navController: NavController) {
     val albums = remember(songs) { songs.groupBy { it.album ?: defaultAlbum }.toList() }
     val context = LocalContext.current
     val art = remember { mutableStateOf<ArtistArt.Art?>(null) }
-    LaunchedEffect(artist) { art.value = ArtistArt.get(context, artist) }
+    LaunchedEffect(artist) {
+        art.value = ArtistArt.get(context, artist)?.let { a ->
+            a.copy(photo = a.photo?.let { ArtistArt.local(context, it) }, logo = a.logo?.let { ArtistArt.local(context, it) })
+        }
+    }
     val wide = isWideLayout()
     val scope = rememberCoroutineScope()
     val play: (YosMediaItem, Boolean) -> Unit = { song, shuffle ->

@@ -20,6 +20,8 @@ object ArtistArt {
 
     suspend fun get(context: Context, artist: String): Art? = withContext(Dispatchers.IO) {
         memory[artist]?.let { return@withContext it }
+        // caches of earlier versions
+        listOf("artist_art", "artist_art2").forEach { File(context.filesDir, it).deleteRecursively() }
         val dir = File(context.filesDir, "artist_art3").apply { mkdirs() }
         val file = File(dir, URLEncoder.encode(artist, "UTF-8").take(150) + ".json")
         val cached = runCatching { if (file.exists()) parse(JSONObject(file.readText())) else null }.getOrNull()
@@ -45,6 +47,21 @@ object ArtistArt {
             .getOrNull() ?: return@withContext null // offline: try again next time
         memory[artist] = art
         art
+    }
+
+    // keeps the picture in the app's files so it shows offline for good; the web address is the fallback
+    suspend fun local(context: Context, url: String): String = withContext(Dispatchers.IO) {
+        val file = File(File(context.filesDir, "artist_art3/images").apply { mkdirs() }, url.substringAfterLast('/'))
+        if (!file.exists()) runCatching {
+            val tmp = File(file.path + ".part")
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.connectTimeout = 8000
+            conn.readTimeout = 15000
+            conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+            conn.disconnect()
+            tmp.renameTo(file)
+        }
+        if (file.exists()) android.net.Uri.fromFile(file).toString() else url
     }
 
     private fun pick(o: JSONObject, vararg keys: String) =
