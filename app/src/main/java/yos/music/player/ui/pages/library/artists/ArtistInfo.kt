@@ -107,12 +107,15 @@ fun ArtistInfo(navController: NavController) {
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFF26262A))
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context).data(art.value?.photo ?: songs.first().thumb).crossfade(true).build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            // the cover stays underneath, so a photo that fails to load leaves the cover showing
+            listOfNotNull(songs.first().thumb, art.value?.photo).forEach { image ->
+                AsyncImage(
+                    model = ImageRequest.Builder(context).data(image).crossfade(true).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             Box(
                 Modifier
                     .fillMaxSize()

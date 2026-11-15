@@ -19,7 +19,7 @@ object ArtistArt {
 
     suspend fun get(context: Context, artist: String): Art? = withContext(Dispatchers.IO) {
         memory[artist]?.let { return@withContext it }
-        val dir = File(context.filesDir, "artist_art").apply { mkdirs() }
+        val dir = File(context.filesDir, "artist_art2").apply { mkdirs() }
         val file = File(dir, URLEncoder.encode(artist, "UTF-8").take(150) + ".json")
         val cached = runCatching { if (file.exists()) parse(JSONObject(file.readText())) else null }.getOrNull()
         val art = cached ?: runCatching {
@@ -28,14 +28,19 @@ object ArtistArt {
             conn.readTimeout = 8000
             val body = conn.inputStream.bufferedReader().use { it.readText() }
             conn.disconnect()
-            val found = JSONObject(body).optJSONArray("artists")?.optJSONObject(0)
+            // the search is loose ("LiSA" finds an Italian "Lisa"): keep only an exact name or alias
+            val found = JSONObject(body).optJSONArray("artists")?.optJSONObject(0)?.takeIf { o ->
+                o.optString("strArtist") == artist ||
+                    o.optString("strArtistAlternate").split(",").any { it.trim() == artist }
+            }
             val saved = JSONObject()
                 .put("photo", found?.let { pick(it, "strArtistFanart", "strArtistWideThumb", "strArtistThumb") } ?: "")
                 .put("logo", found?.let { pick(it, "strArtistLogo") } ?: "")
             // "not found" is saved too, so the service is asked only once per artist
             file.writeText(saved.toString())
             parse(saved)
-        }.getOrNull() ?: return@withContext null // offline: try again next time
+        }.onFailure { android.util.Log.w("ArtistArt", "lookup failed: $artist", it) }
+            .getOrNull() ?: return@withContext null // offline: try again next time
         memory[artist] = art
         art
     }
