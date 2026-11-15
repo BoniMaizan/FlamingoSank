@@ -19,6 +19,14 @@ object LibraryObject {
     }
 
     @Stable
+    private val targetArtistName = mutableStateOf("")
+    fun setTargetArtistName(name: String) {
+        targetArtistName.value = name
+    }
+
+    fun getTargetArtistName(): String = targetArtistName.value
+
+    @Stable
     private val targetList: MutableState<List<YosMediaItem>> = mutableStateOf(emptyList())
     @Stable
     private val targetListTitle = mutableStateOf("")

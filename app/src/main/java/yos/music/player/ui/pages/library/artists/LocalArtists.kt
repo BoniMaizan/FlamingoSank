@@ -1,5 +1,8 @@
 package yos.music.player.ui.pages.library.artists
 
+import yos.music.player.ui.toUI
+import yos.music.player.ui.UI
+import yos.music.player.data.objects.LibraryObject
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -149,7 +152,8 @@ fun LocalArtists(navController: NavController) {
                     contentType = { _, _ -> "LocalArtists_item" }*/
                 ) { index, artist ->
                     ArtistItem(artistName = artist) {
-
+                        LibraryObject.setTargetArtistName(artist)
+                        navController.toUI(UI.ArtistInfo)
                     }
 
                     key(index) {

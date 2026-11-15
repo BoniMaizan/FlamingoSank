@@ -162,6 +162,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import yos.music.player.ui.pages.isWideLayout
 import yos.music.player.ui.pages.SideBarWidth
 import yos.music.player.ui.pages.SideBar
+import yos.music.player.ui.pages.library.artists.ArtistInfo
 import yos.music.player.ui.pages.settings.SettingsPane
 import yos.music.player.ui.widgets.basic.ImageQuality
 import yos.music.player.ui.widgets.basic.NavItem
@@ -493,6 +494,10 @@ class MainActivity : BaseActivity() {
                                             }
                                             composable(UI.LocalArtists) {
                                                 LocalArtists(navController)
+                                            }
+
+                                            composable(UI.ArtistInfo) {
+                                                ArtistInfo(navController)
                                             }
 
                                             composable(UI.AlbumInfo) {
