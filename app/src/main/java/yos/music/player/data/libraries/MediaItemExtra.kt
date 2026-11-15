@@ -4,10 +4,11 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.media3.common.MediaItem
 
-const val defaultArtistsName = "Unknown Artist"
-val defaultArtists = listOf(defaultArtistsName)
-const val defaultTitle = "Unknown Work"
-const val defaultAlbum = "Unknown Album"
+// set to the device language in YosBasicApplication.onCreate
+var defaultArtistsName = "Unknown Artist"
+val defaultArtists get() = listOf(defaultArtistsName)
+var defaultTitle = "Unknown Work"
+var defaultAlbum = "Unknown Album"
 
 val MediaItem.uri: Uri?
     get() = this.localConfiguration?.uri

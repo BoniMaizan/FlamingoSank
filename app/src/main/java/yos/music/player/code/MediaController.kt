@@ -777,8 +777,8 @@ class YosPlaybackService : MediaSessionService() {
         */
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Flamingo Media Control"
-            val descriptionText = "Flamingo Media Control Notification Channel"
+            val name = getString(R.string.notification_channel_name)
+            val descriptionText = getString(R.string.notification_channel_desc)
             val importance = NotificationManager.IMPORTANCE_NONE
             val channel = NotificationChannel(channelID, name, importance).apply {
                 description = descriptionText

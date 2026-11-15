@@ -213,4 +213,9 @@
     <string name="option_dark">Sombre</string>
     <string name="option_light">Clair</string>
     <string name="option_system">Système</string>
+    <string name="unknown_artist">Artiste inconnu</string>
+    <string name="unknown_title">Titre inconnu</string>
+    <string name="unknown_album">Album inconnu</string>
+    <string name="notification_channel_name">Contrôle multimédia Flamingo</string>
+    <string name="notification_channel_desc">Canal de notification du contrôle multimédia Flamingo</string>
 </resources>

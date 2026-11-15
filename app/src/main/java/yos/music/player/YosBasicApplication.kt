@@ -35,6 +35,10 @@ class YosBasicApplication : Application() {
             exitProcess(1)
         }
 
+        yos.music.player.data.libraries.defaultArtistsName = getString(R.string.unknown_artist)
+        yos.music.player.data.libraries.defaultTitle = getString(R.string.unknown_title)
+        yos.music.player.data.libraries.defaultAlbum = getString(R.string.unknown_album)
+
         // 初始化 MMKV
         MMKV.initialize(this)
 

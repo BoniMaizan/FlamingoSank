@@ -212,4 +212,9 @@
     <string name="option_dark">Dark</string>
     <string name="option_light">Light</string>
     <string name="option_system">System</string>
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_title">Unknown Work</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="notification_channel_name">Flamingo Media Control</string>
+    <string name="notification_channel_desc">Flamingo Media Control Notification Channel</string>
 </resources>
