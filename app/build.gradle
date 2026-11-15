@@ -46,6 +46,13 @@ android {
                 }
             }
         }
+        // Optimised like release, signed with the debug key so it updates the .fork install: debug builds are much slower
+        fork {
+            initWith release
+            applicationIdSuffix ".fork"
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
     }
 
     compileOptions {
