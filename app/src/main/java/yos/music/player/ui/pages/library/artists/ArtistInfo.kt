@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -72,7 +74,11 @@ fun ArtistInfo(navController: NavController) {
     val art = remember { mutableStateOf<ArtistArt.Art?>(null) }
     LaunchedEffect(artist) {
         art.value = ArtistArt.get(context, artist)?.let { a ->
-            a.copy(photo = a.photo?.let { ArtistArt.local(context, it) }, logo = a.logo?.let { ArtistArt.local(context, it) })
+            a.copy(
+                photo = a.photo?.let { ArtistArt.local(context, it) },
+                thumb = a.thumb?.let { ArtistArt.local(context, it) },
+                logo = a.logo?.let { ArtistArt.local(context, it) }
+            )
         }
     }
     val wide = isWideLayout()
@@ -118,15 +124,21 @@ fun ArtistInfo(navController: NavController) {
                 .height(if (wide) 420.dp else 340.dp)
                 .background(Color(0xFF26262A))
         ) {
+            val photo = art.value?.photo
+            // without a wide picture: the profile picture (else a cover), blurred behind, sharp in a circle
+            val profile = art.value?.thumb ?: songs.first().thumb
             // the cover stays underneath, so a photo that fails to load leaves the cover showing
-            listOfNotNull(songs.first().thumb, art.value?.photo).forEach { image ->
+            listOfNotNull(songs.first().thumb, photo ?: profile).forEach { image ->
                 AsyncImage(
                     model = ImageRequest.Builder(context).data(image).crossfade(true).build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     // faces sit in the upper part of artist photos: crop from there, not the middle
                     alignment = BiasAlignment(0f, -0.6f),
-                    modifier = Modifier.fillMaxSize()
+                    modifier = if (photo != null) Modifier.fillMaxSize() else Modifier
+                        .fillMaxSize()
+                        .blur(48.dp)
+                        .background(Color.Black.copy(alpha = 0.15f))
                 )
             }
             Box(
@@ -147,6 +159,16 @@ fun ArtistInfo(navController: NavController) {
                     .padding(horizontal = pad, vertical = 24.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
+                val profile = art.value?.thumb ?: songs.first().thumb
+                if (art.value?.photo == null && profile != null) AsyncImage(
+                    model = ImageRequest.Builder(context).data(profile).crossfade(true).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .padding(end = 20.dp)
+                        .size(if (wide) 168.dp else 112.dp)
+                        .clip(CircleShape)
+                )
                 Column(Modifier.weight(1f)) {
                     val logo = art.value?.logo
                     if (logo != null) AsyncImage(

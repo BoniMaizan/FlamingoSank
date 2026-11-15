@@ -28,25 +28,30 @@ object ArtistArt {
     private var prefetchJob: Job? = null
 
     private fun cacheFile(context: Context, artist: String) =
-        File(File(context.filesDir, "artist_art4").apply { mkdirs() }, URLEncoder.encode(artist, "UTF-8").take(150) + ".json")
+        File(File(context.filesDir, "artist_art5").apply { mkdirs() }, URLEncoder.encode(artist, "UTF-8").take(150) + ".json")
 
     suspend fun get(context: Context, artist: String): Art? = withContext(Dispatchers.IO) {
         memory[artist]?.let { return@withContext it }
         // caches of earlier versions
-        listOf("artist_art", "artist_art2", "artist_art3").forEach { File(context.filesDir, it).deleteRecursively() }
+        listOf("artist_art", "artist_art2", "artist_art3", "artist_art4").forEach { File(context.filesDir, it).deleteRecursively() }
         val file = cacheFile(context, artist)
         val cached = runCatching { if (file.exists()) parse(JSONObject(file.readText())) else null }.getOrNull()
         val art = cached ?: runCatching {
-            // the search is loose ("LiSA" finds an Italian "Lisa"): keep only an exact name or alias
+            // what the library knows about this artist, to tell same-named artists apart
+            val mine = MusicLibrary.Artist[artist].flatMap { listOfNotNull(it.title, it.album) }.map(::norm).filter { it.isNotEmpty() }.toSet()
+            val dz = deezer(artist, mine)
+            // the search is loose ("LiSA" finds an Italian "Lisa"): keep only an exact name or alias,
+            // and when the name is shared (Eve), only if one of its albums is this artist's
             val found = JSONObject(fetch(API + URLEncoder.encode(artist, "UTF-8"))).optJSONArray("artists")
                 ?.optJSONObject(0)?.takeIf { o ->
                     o.optString("strArtist") == artist ||
                         o.optString("strArtistAlternate").split(",").any { it.trim() == artist }
+                }?.takeIf { o ->
+                    dz?.ambiguous != true || audioDbAlbums(o.optString("idArtist")).any { matches(it, mine) || matches(it, dz.albums) }
                 }
-            val thumb = found?.let { pick(it, "strArtistThumb") } ?: deezerPicture(artist)
             val saved = JSONObject()
                 .put("photo", found?.let { pick(it, "strArtistFanart", "strArtistWideThumb") } ?: "")
-                .put("thumb", thumb ?: "")
+                .put("thumb", found?.let { pick(it, "strArtistThumb") } ?: dz?.picture ?: "")
                 .put("logo", found?.let { pick(it, "strArtistLogo") } ?: "")
             // "not found" is saved too, so the services are asked only once per artist
             file.writeText(saved.toString())
@@ -57,15 +62,38 @@ object ArtistArt {
         art
     }
 
-    // Deezer's search is loose too: same name ignoring case, the exact spelling first, else the most followed
-    private fun deezerPicture(artist: String): String? {
+    private class Deezer(val picture: String?, val albums: Set<String>, val ambiguous: Boolean)
+
+    // Deezer's search is loose too. Among the artists with this name, the one whose albums match the library;
+    // failing that, the most followed with the exact spelling
+    private fun deezer(artist: String, mine: Set<String>): Deezer? {
         val results = JSONObject(fetch(DEEZER + URLEncoder.encode(artist, "UTF-8"))).optJSONArray("data") ?: return null
         val same = (0 until results.length()).map { results.getJSONObject(it) }
             .filter { it.optString("name").equals(artist, ignoreCase = true) }
-        val best = same.firstOrNull { it.optString("name") == artist } ?: same.maxByOrNull { it.optInt("nb_fan") }
+            .sortedByDescending { it.optInt("nb_fan") }
+        if (same.isEmpty()) return null
+        val albums = HashMap<Long, Set<String>>()
+        fun albumsOf(o: JSONObject) = albums.getOrPut(o.optLong("id")) {
+            val data = JSONObject(fetch("https://api.deezer.com/artist/${o.optLong("id")}/albums?limit=100")).optJSONArray("data")
+            (0 until (data?.length() ?: 0)).map { norm(data!!.getJSONObject(it).optString("title")) }.toSet()
+        }
+        val best = same.take(4).firstOrNull { c -> albumsOf(c).any { matches(it, mine) } }
+            ?: same.firstOrNull { it.optString("name") == artist } ?: same.first()
         // Deezer's placeholder for artists without a picture has an empty hash in its address
-        return best?.optString("picture_xl")?.takeIf { it.startsWith("http") && "/artist//" !in it }
+        val picture = best.optString("picture_xl").takeIf { it.startsWith("http") && "/artist//" !in it }
+        // a namesake with a handful of fans is an empty page, not a real ambiguity
+        return Deezer(picture, albumsOf(best), same.count { it.optInt("nb_fan") >= 100 } > 1)
     }
+
+    private fun audioDbAlbums(id: String): List<String> {
+        val data = JSONObject(fetch("https://www.theaudiodb.com/api/v1/json/123/album.php?i=$id")).optJSONArray("album")
+        return (0 until (data?.length() ?: 0)).map { norm(data!!.getJSONObject(it).optString("strAlbum")) }
+    }
+
+    // titles compared without case, spaces or punctuation; "kaikaikitanaonowaltz" contains "kaikaikitan"
+    private fun norm(s: String) = s.lowercase().filter { it.isLetterOrDigit() }
+    private fun matches(t: String, set: Set<String>) =
+        t.isNotEmpty() && set.any { it == t || (minOf(it.length, t.length) >= 4 && (it.contains(t) || t.contains(it))) }
 
     // keeps the picture in the app's files so it shows offline for good; the web address is the fallback
     suspend fun local(context: Context, url: String): String = withContext(Dispatchers.IO) {
