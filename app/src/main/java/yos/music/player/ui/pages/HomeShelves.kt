@@ -1,6 +1,10 @@
 package yos.music.player.ui.pages
 
 import androidx.compose.foundation.clickable
+import yos.music.player.ui.theme.withNight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Icon
@@ -55,11 +59,9 @@ fun HomeShelf(
     title: String,
     list: List<YosMediaItem>,
     navController: NavController,
-    subTitle: String? = null,
-    // songs already shown above (tablet hero); "See All" still opens the whole list
-    startAt: Int = 0
+    subTitle: String? = null
 ) {
-    val shown = list.drop(startAt).take(SHELF_SIZE)
+    val shown = list.take(SHELF_SIZE)
     if (shown.isEmpty()) return
     val scope = rememberCoroutineScope()
     val tile = if (isWideLayout()) 160.dp else 130.dp
@@ -146,17 +148,29 @@ fun HomeShelf(
     }
 }
 
-// Tablets: the last song played, large, at the top of Home
+// Tablets: the last song played on the left, the ones before it on the right
 @Composable
 fun HomeHero(history: List<YosMediaItem>) {
     val music = history.firstOrNull() ?: return
     val scope = rememberCoroutineScope()
-    val play: () -> Unit = { scope.launch(Dispatchers.IO) { MediaController.prepare(music, history.take(SHELF_SIZE)) } }
+    val queue = history.take(SHELF_SIZE)
+    val play: () -> Unit = { scope.launch(Dispatchers.IO) { MediaController.prepare(music, queue) } }
+    val card = (Color.Black withNight Color.White).copy(alpha = 0.07f)
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
-            .padding(top = 12.dp, bottom = 6.dp),
+            .padding(top = 12.dp, bottom = 6.dp)
+            .height(236.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+    Row(
+        Modifier
+            .weight(1.15f)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(14.dp))
+            .background(card)
+            .padding(18.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
@@ -168,14 +182,14 @@ fun HomeHero(history: List<YosMediaItem>) {
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(220.dp)
+                .size(170.dp)
                 .clip(YosRoundedCornerShape(12.dp))
                 .clickable(onClick = play)
         )
         Column(
             Modifier
                 .weight(1f)
-                .padding(start = 28.dp)
+                .padding(start = 18.dp)
         ) {
             Text(
                 text = stringResource(id = R.string.home_last_played),
@@ -185,8 +199,8 @@ fun HomeHero(history: List<YosMediaItem>) {
             )
             Text(
                 text = music.title ?: defaultTitle,
-                fontSize = 30.sp,
-                lineHeight = 34.sp,
+                fontSize = 26.sp,
+                lineHeight = 30.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -236,5 +250,84 @@ fun HomeHero(history: List<YosMediaItem>) {
                 )
             }
         }
+    }
+    Column(
+        Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(14.dp))
+            .background(card)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = stringResource(id = R.string.home_jump_back_in),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = stringResource(id = R.string.home_jump_back_in_desc),
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .padding(start = 10.dp)
+                    .alpha(0.5f)
+            )
+        }
+        history.drop(1).take(4).forEach { song ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+                    .height(40.dp)
+                    .clickable { scope.launch(Dispatchers.IO) { MediaController.prepare(song, queue) } },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current).data(song.thumb)
+                        .crossfade(true)
+                        .placeholder(R.drawable.placeholder_music_default_artwork)
+                        .error(R.drawable.placeholder_music_default_artwork)
+                        .fallback(R.drawable.placeholder_music_default_artwork).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(YosRoundedCornerShape(5.dp))
+                )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
+                ) {
+                    Text(
+                        text = song.title ?: defaultTitle,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = song.artistsName ?: defaultArtistsName,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.alpha(0.5f)
+                    )
+                }
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(card),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painterResource(id = R.drawable.button_icon_play),
+                        contentDescription = stringResource(id = R.string.normal_button_play),
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
+            }
+        }
+    }
     }
 }

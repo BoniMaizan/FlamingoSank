@@ -91,13 +91,12 @@ fun Home(
             } else item("RecommendCard") {
                 RecommendCard(imageViewModel)
             }
-            item("RecentlyPlayed") {
+            if (!wide) item("RecentlyPlayed") {
                 HomeShelf(
                     stringResource(id = R.string.home_recently_played),
                     history,
                     navController,
-                    stringResource(id = R.string.home_recently_played_desc),
-                    startAt = if (wide) 1 else 0
+                    stringResource(id = R.string.home_recently_played_desc)
                 )
             }
             item("RecentlyAdded") {
