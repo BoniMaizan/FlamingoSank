@@ -77,22 +77,27 @@ import yos.music.player.ui.widgets.basic.YosWrapper
 fun Home(
     navController: NavController,
     imageViewModel: ImageViewModel
-) = Title(
+) = isWideLayout().let { wide -> Title(
     title = stringResource(id = R.string.page_home_title),
         rightIcon = CupertinoIcons.Default.PersonCropCircle,
         onRightIcon = {
             navController.toUI(UI.Settings.Main)
         },
         content = {
-            item("RecommendCard") {
+            val history = HistoryLibrary.history.distinctBy { it.uri }
+            // tablets: the last song played, large, instead of the suggestions card
+            if (wide) item("LastPlayed") {
+                HomeHero(history)
+            } else item("RecommendCard") {
                 RecommendCard(imageViewModel)
             }
             item("RecentlyPlayed") {
                 HomeShelf(
                     stringResource(id = R.string.home_recently_played),
-                    HistoryLibrary.history.distinctBy { it.uri },
+                    history,
                     navController,
-                    stringResource(id = R.string.home_recently_played_desc)
+                    stringResource(id = R.string.home_recently_played_desc),
+                    startAt = if (wide) 1 else 0
                 )
             }
             item("RecentlyAdded") {
@@ -121,7 +126,7 @@ fun Home(
                     stringResource(id = R.string.home_favorites_desc)
                 )
             }
-        })
+        }) }
 
 @Composable
 fun RecommendCard(imageViewModel: ImageViewModel) {

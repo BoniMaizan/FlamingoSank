@@ -1,6 +1,11 @@
 package yos.music.player.ui.pages
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,10 +51,18 @@ private const val SHELF_SIZE = 20
 
 // A titled row of covers on Home; "See All" opens the whole list in its order
 @Composable
-fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavController, subTitle: String? = null) {
-    if (list.isEmpty()) return
+fun HomeShelf(
+    title: String,
+    list: List<YosMediaItem>,
+    navController: NavController,
+    subTitle: String? = null,
+    // songs already shown above (tablet hero); "See All" still opens the whole list
+    startAt: Int = 0
+) {
+    val shown = list.drop(startAt).take(SHELF_SIZE)
+    if (shown.isEmpty()) return
     val scope = rememberCoroutineScope()
-    val shown = list.take(SHELF_SIZE)
+    val tile = if (isWideLayout()) 160.dp else 130.dp
     Column(
         Modifier
             .fillMaxWidth()
@@ -96,7 +109,7 @@ fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavControl
             items(shown, key = { it.uri.toString() }) { music ->
                 Column(
                     Modifier
-                        .width(130.dp)
+                        .width(tile)
                         .clickable {
                             scope.launch(Dispatchers.IO) { MediaController.prepare(music, shown) }
                         }
@@ -110,7 +123,7 @@ fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavControl
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(130.dp)
+                            .size(tile)
                             .clip(YosRoundedCornerShape(8.dp))
                     )
                     Text(
@@ -128,6 +141,99 @@ fun HomeShelf(title: String, list: List<YosMediaItem>, navController: NavControl
                         modifier = Modifier.alpha(0.6f)
                     )
                 }
+            }
+        }
+    }
+}
+
+// Tablets: the last song played, large, at the top of Home
+@Composable
+fun HomeHero(history: List<YosMediaItem>) {
+    val music = history.firstOrNull() ?: return
+    val scope = rememberCoroutineScope()
+    val play: () -> Unit = { scope.launch(Dispatchers.IO) { MediaController.prepare(music, history.take(SHELF_SIZE)) } }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 12.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current).data(music.thumb)
+                .crossfade(true)
+                .placeholder(R.drawable.placeholder_music_default_artwork)
+                .error(R.drawable.placeholder_music_default_artwork)
+                .fallback(R.drawable.placeholder_music_default_artwork).build(),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(220.dp)
+                .clip(YosRoundedCornerShape(12.dp))
+                .clickable(onClick = play)
+        )
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(start = 28.dp)
+        ) {
+            Text(
+                text = stringResource(id = R.string.home_last_played),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = music.title ?: defaultTitle,
+                fontSize = 30.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+            Text(
+                text = music.artistsName ?: defaultArtistsName,
+                fontSize = 18.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .alpha(0.6f)
+            )
+            music.album?.let {
+                Text(
+                    text = it,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .alpha(0.45f)
+                )
+            }
+            Row(
+                Modifier
+                    .padding(top = 20.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable(onClick = play)
+                    .padding(horizontal = 22.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painterResource(id = R.drawable.button_icon_play),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = stringResource(id = R.string.normal_button_play),
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
         }
     }
