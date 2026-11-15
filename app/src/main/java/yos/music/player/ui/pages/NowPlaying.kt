@@ -2,6 +2,8 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import yos.music.player.ui.widgets.basic.Segmented
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
@@ -206,6 +208,9 @@ object NowPlayingPage {
     const val Album = "Album"
     const val PlayingList = "PlayingList"
     const val Lyric = "Lyric"
+
+    // Tablet only: song details in the side pane
+    const val Info = "Info"
 }
 
 private const val ShareAlbumKey = "album"
@@ -285,13 +290,16 @@ fun NowPlaying(
         val paneStart by animateDpAsState(
             targetValue = when {
                 !wide -> 0.dp
-                nowPageLambda() == Album -> (screenWidth - WidePaneWidth) / 2
                 else -> (screenWidth / 2 - WidePaneWidth) / 2
             }, label = "NowPlaying_paneStart"
         )
         // wrapContentWidth: the Surface parent forces its full width as a minimum
         val paneModifier = if (wide) Modifier.wrapContentWidth(Alignment.Start).padding(start = paneStart).width(WidePaneWidth) else Modifier
         val sideModifier = if (wide) Modifier.padding(start = screenWidth / 2, end = 32.dp) else Modifier
+        // Tablets always show a side pane: the queue unless lyrics or info were picked
+        if (wide) LaunchedEffect(nowPageLambda()) {
+            if (nowPageLambda() == Album) nowPageOnChanged(PlayingList)
+        }
 
         val lrcEntries: MutableState<List<List<Pair<Float, String>>>> =
             MediaViewModelObject.lrcEntries
@@ -411,6 +419,15 @@ fun NowPlaying(
             }
 
             println("重组：主功能区")
+
+            if (wide) Box(
+                Modifier
+                    .fillMaxSize()
+                    .then(sideModifier)
+                    .padding(top = 24.dp, bottom = 24.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color.Black.copy(alpha = 0.22f))
+            )
 
             // 歌词
             YosWrapper {
@@ -640,14 +657,23 @@ fun NowPlaying(
                         )
                     }
                 }
+                AnimatedVisibility(
+                    visible = nowPageLambda() == NowPlayingPage.Info,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    SongInfoPane(
+                        thisMusicPlaying.value,
+                        Modifier
+                            .fillMaxSize()
+                            .then(sideModifier)
+                            .padding(top = 80.dp, bottom = 24.dp)
+                    )
+                }
             }
 
             // Wide mode: tabs above the side pane to switch between lyrics and the queue
-            if (wide) AnimatedVisibility(
-                visible = nowPageLambda() != Album,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
+            if (wide) {
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -656,14 +682,19 @@ fun NowPlaying(
                         .padding(top = 34.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
+                    val tabs = listOf(Lyric, PlayingList, NowPlayingPage.Info)
                     Segmented(
                         options = listOf(
                             stringResource(id = R.string.nowplaying_tab_lyrics),
-                            stringResource(id = R.string.nowplaying_tab_up_next)
+                            stringResource(id = R.string.nowplaying_tab_up_next),
+                            stringResource(id = R.string.nowplaying_tab_info)
                         ),
-                        selected = if (nowPageLambda() == Lyric) 0 else 1,
-                        onSelect = { nowPageOnChanged(if (it == 0) Lyric else PlayingList) },
-                        modifier = Modifier.width(320.dp)
+                        // Album never shows on tablets: count it as the queue
+                        selected = tabs.indexOf(nowPageLambda()).let { if (it < 0) 1 else it },
+                        onSelect = { nowPageOnChanged(tabs[it]) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
                     )
                 }
             }
@@ -2133,7 +2164,9 @@ private fun PlayerControl(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     val dp = 32.dp
-                    Box(
+                    val config = LocalConfiguration.current
+                    val wide = config.screenWidthDp > config.screenHeightDp && config.screenWidthDp >= 600
+                    if (!wide) Box(
                         modifier = Modifier
                             .height(36.dp)
                             .weight(1f)
@@ -2166,7 +2199,7 @@ private fun PlayerControl(
                         }
                     }
 
-                    Spacer(modifier = Modifier.weight(0.1f))
+                    if (!wide) Spacer(modifier = Modifier.weight(0.1f))
 
                     AirPlay()
 
@@ -2192,9 +2225,9 @@ private fun PlayerControl(
                     }
                     if (showTimer.value) SleepTimerSheet { showTimer.value = false }
 
-                    Spacer(modifier = Modifier.weight(0.1f))
+                    if (!wide) Spacer(modifier = Modifier.weight(0.1f))
 
-                    Box(
+                    if (!wide) Box(
                         modifier = Modifier
                             .height(36.dp)
                             .weight(1f)
@@ -2407,4 +2440,32 @@ fun formatTime(seconds: Long): String {
     val minutes = seconds / 60
     val secs = seconds % 60
     return "$minutes:${if (secs < 10) "0$secs" else "$secs"}"
+}
+// Tablet side pane: details of the playing song
+@Composable
+private fun SongInfoPane(music: YosMediaItem?, modifier: Modifier) {
+    if (music == null) return
+    val rows = listOfNotNull(
+        R.string.nowplaying_info_title to music.title,
+        R.string.nowplaying_info_artist to music.artistsName,
+        R.string.nowplaying_info_album to music.album,
+        R.string.nowplaying_info_genre to music.genre,
+        R.string.nowplaying_info_year to (music.releaseYear ?: music.recordingYear)?.toString(),
+        R.string.nowplaying_info_track to music.trackNumber?.takeIf { it > 0 }?.toString(),
+        R.string.nowplaying_info_duration to formatTime(music.duration / 1000),
+        R.string.nowplaying_info_format to music.mimeType,
+        R.string.nowplaying_info_file to music.uri?.let { Uri.decode(it.toString()) }
+    ).filter { !it.second.isNullOrBlank() }
+    Column(
+        modifier
+            .padding(horizontal = 24.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        rows.forEach { (label, value) ->
+            Column(Modifier.padding(vertical = 9.dp)) {
+                Text(stringResource(id = label), fontSize = 12.sp, color = Color.White.copy(alpha = 0.55f))
+                Text(value!!, fontSize = 16.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
 }

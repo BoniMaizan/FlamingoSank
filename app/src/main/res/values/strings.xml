@@ -17,6 +17,16 @@
     <string name="song_menu_play_next">Play Next</string>
     <string name="nowplaying_tab_lyrics">Lyrics</string>
     <string name="nowplaying_tab_up_next">Up Next</string>
+    <string name="nowplaying_tab_info">Info</string>
+    <string name="nowplaying_info_title">Title</string>
+    <string name="nowplaying_info_artist">Artist</string>
+    <string name="nowplaying_info_album">Album</string>
+    <string name="nowplaying_info_genre">Genre</string>
+    <string name="nowplaying_info_year">Year</string>
+    <string name="nowplaying_info_track">Track</string>
+    <string name="nowplaying_info_duration">Duration</string>
+    <string name="nowplaying_info_format">Format</string>
+    <string name="nowplaying_info_file">File</string>
     <string name="song_menu_add_queue">Add to Queue</string>
     <string name="playlist_unavailable_title">Unable to Display Playlist</string>
     <string name="tip_scanning">Pulling songs from the library…</string>

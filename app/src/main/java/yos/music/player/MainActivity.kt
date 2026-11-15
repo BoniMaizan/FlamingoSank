@@ -380,7 +380,7 @@ class MainActivity : BaseActivity() {
                                     YosWrapper {
                                         BackHandler(showNowPlaying.value) {
                                             // println("isVisible: ${showNowPlaying.value}, nowPageNowPlaying.value: ${nowPageNowPlaying.value}")
-                                            if (nowPageNowPlaying.value != Album) {
+                                            if (nowPageNowPlaying.value != Album && !wide) {
                                                 nowPageNowPlaying.value =
                                                     Album
                                             } else {
