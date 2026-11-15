@@ -4,6 +4,15 @@ import yos.music.player.ui.toUI
 import yos.music.player.ui.UI
 import yos.music.player.data.objects.LibraryObject
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.font.FontWeight
+import yos.music.player.data.libraries.ArtistArt
+import yos.music.player.ui.pages.isWideLayout
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -121,6 +130,11 @@ fun LocalArtists(navController: NavController) {
                 }
             }
 
+            val wide = isWideLayout()
+            // tablets: a grid of round portraits, A to Z
+            val gridRows = remember(list.value, wide) {
+                if (wide) list.value.sortedBy { it.lowercase() }.chunked(6) else emptyList()
+            }
             Title(
                 title = stringResource(id = R.string.page_library_artists), onBack = {
                     navController.popBackStack()
@@ -146,7 +160,23 @@ fun LocalArtists(navController: NavController) {
                         })
                 }
 
-                itemsIndexed(
+                if (wide) items(gridRows, key = { it.first() }) { row ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                            .padding(bottom = 14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        row.forEach { artist ->
+                            ArtistTile(artist, Modifier.weight(1f)) {
+                                LibraryObject.setTargetArtistName(artist)
+                                navController.toUI(UI.ArtistInfo)
+                            }
+                        }
+                        repeat(6 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                } else itemsIndexed(
                     list.value,
                     key = { _, artist -> artist }/*,
                     contentType = { _, _ -> "LocalArtists_item" }*/
@@ -258,3 +288,48 @@ private fun LazyItemScope.ArtistItem(
                 .alpha(0.3f), tint = MaterialTheme.colorScheme.onBackground
         )
     }
+
+@Composable
+private fun ArtistTile(artist: String, modifier: Modifier, onClick: () -> Unit) = Column(
+    modifier
+        .clip(RoundedCornerShape(12.dp))
+        .clickable(onClick = onClick)
+        .padding(vertical = 6.dp),
+    horizontalAlignment = Alignment.CenterHorizontally
+) {
+    val context = LocalContext.current
+    val songs = remember(artist) { MusicLibrary.Artist[artist] }
+    val thumb = songs.firstOrNull()?.thumb
+    val photo = remember(artist) { mutableStateOf<String?>(null) }
+    LaunchedEffect(artist) { photo.value = ArtistArt.get(context, artist)?.photo }
+    Box(
+        Modifier
+            .fillMaxWidth(0.86f)
+            .aspectRatio(1f)
+            .clip(CircleShape)
+            .background((Color.Black withNight Color.White).copy(alpha = 0.08f)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (thumb == null && photo.value == null) Text(
+            artist.take(1).uppercase(), fontSize = 40.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.alpha(0.45f)
+        )
+        // the cover stays underneath until the artist's photo arrives (or if there is none)
+        listOfNotNull(thumb, photo.value).forEach { image ->
+            AsyncImage(
+                model = ImageRequest.Builder(context).data(image).size(320).crossfade(true).build(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = BiasAlignment(0f, -0.6f),
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+    Text(
+        artist, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 8.dp, start = 4.dp, end = 4.dp)
+    )
+    Text(
+        pluralStringResource(R.plurals.artist_songs, songs.size, songs.size),
+        fontSize = 12.sp, modifier = Modifier.alpha(0.5f)
+    )
+}
