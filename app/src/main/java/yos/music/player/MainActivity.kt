@@ -220,8 +220,9 @@ class MainActivity : BaseActivity() {
                         contentColor = Color.Black withNight Color.White
                     ) {*/
                         println("重组：主载体")
-                        val miniPlayerHeight = 62.dp
                         val wide = isWideLayout()
+                        // tablets: a taller bar with bigger cover and buttons
+                        val miniPlayerHeight = if (wide) 76.dp else 62.dp
                         val settingsRoutes = remember {
                             setOf(
                                 UI.Settings.Main, UI.Settings.LibraryOverview, UI.Settings.LyricGetter, UI.Settings.ExoplayerSetting,
@@ -970,7 +971,7 @@ class MainActivity : BaseActivity() {
                                                                             dataLambda = { MediaViewModelObject.bitmap.value },
                                                                             contentDescription = null,
                                                                             modifier = Modifier
-                                                                                .size(47.dp),
+                                                                                .size(if (wide) 58.dp else 47.dp),
                                                                             cornerRadius = 6.dp,
                                                                             shadowAlpha = 0f,
                                                                             imageQuality = ImageQuality.LOW
@@ -987,15 +988,17 @@ class MainActivity : BaseActivity() {
                                                                             text = MediaController.musicPlaying.value?.title
                                                                                 ?: defaultTitle,
                                                                             fontWeight = FontWeight.Medium,
-                                                                            fontSize = 16.sp,
+                                                                            fontSize = if (wide) 17.sp else 16.sp,
                                                                             lineHeight = 16.sp,
                                                                             maxLines = 1,
                                                                             overflow = TextOverflow.Ellipsis,
                                                                             color = Color.Black withNight Color.White
                                                                         )
                                                                         if (wide) Text(
-                                                                            text = MediaController.musicPlaying.value?.artistsName ?: defaultArtistsName,
-                                                                            fontSize = 13.5.sp,
+                                                                            text = MediaController.musicPlaying.value.let { m ->
+                                                                                listOfNotNull(m?.artistsName ?: defaultArtistsName, m?.album?.takeIf { it.isNotBlank() }).joinToString(" · ")
+                                                                            },
+                                                                            fontSize = 14.5.sp,
                                                                             lineHeight = 15.sp,
                                                                             modifier = Modifier.alpha(0.6f).padding(top = 3.dp),
                                                                             maxLines = 1,
@@ -1023,7 +1026,7 @@ class MainActivity : BaseActivity() {
                                                                     verticalAlignment = Alignment.CenterVertically
                                                                 ) {
                                                                     if (wide) {
-                                                                        MiniButton(R.drawable.ic_nowplaying_rewind, "Previous", 30.dp) {
+                                                                        MiniButton(R.drawable.ic_nowplaying_rewind, "Previous", 36.dp) {
                                                                             Vibrator.click(context)
                                                                             MediaController.mediaControl?.seekToPreviousMediaItem()
                                                                         }
@@ -1031,7 +1034,7 @@ class MainActivity : BaseActivity() {
                                                                     }
                                                                     Box(
                                                                         modifier = Modifier
-                                                                            .size(34.dp)
+                                                                            .size(if (wide) 40.dp else 34.dp)
                                                                             .clickable(
                                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                                 indication = ripple(
@@ -1092,7 +1095,7 @@ class MainActivity : BaseActivity() {
                                                                     )
                                                                     Box(
                                                                         modifier = Modifier
-                                                                            .size(36.dp)
+                                                                            .size(if (wide) 42.dp else 36.dp)
                                                                             .clickable(
                                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                                 indication = ripple(
@@ -1124,19 +1127,26 @@ class MainActivity : BaseActivity() {
                                                                                 offsetY.animateTo(parentHeight.intValue.toFloat(), animationSpec = navSpec)
                                                                             }
                                                                         }
-                                                                        Spacer(Modifier.width(30.dp))
-                                                                        MiniButton(R.drawable.ic_nowplaying_lyrics, "Lyrics", 26.dp) { openOn(Lyric) }
+                                                                        Spacer(Modifier.width(22.dp))
+                                                                        // separates playback from the panes it opens
+                                                                        Box(
+                                                                            Modifier
+                                                                                .size(width = 1.dp, height = 28.dp)
+                                                                                .background((Color.Black withNight Color.White).copy(alpha = 0.2f))
+                                                                        )
+                                                                        Spacer(Modifier.width(22.dp))
+                                                                        MiniButton(R.drawable.ic_nowplaying_lyrics, "Lyrics", 30.dp) { openOn(Lyric) }
                                                                         Spacer(Modifier.width(18.dp))
                                                                         MiniButton(
                                                                             if (SleepTimer.stopAt.longValue != 0L) R.drawable.ic_nowplaying_sleepon else R.drawable.ic_nowplaying_sleep,
-                                                                            "Sleep Timer", 26.dp
+                                                                            "Sleep Timer", 30.dp
                                                                         ) { showSleepTimer.value = true }
                                                                         Spacer(Modifier.width(18.dp))
-                                                                        MiniButton(R.drawable.ic_nowplaying_queue, "Up Next", 26.dp) { openOn(PlayingList) }
+                                                                        MiniButton(R.drawable.ic_nowplaying_queue, "Up Next", 30.dp) { openOn(PlayingList) }
                                                                     }
                                                                 }
                                                             }
-                                                            if (wide) MiniProgress(Modifier.align(Alignment.BottomCenter))
+                                                            if (wide) MiniProgress(Modifier.align(Alignment.TopCenter))
                                                         }
                                                     }
                                                 }
@@ -1335,7 +1345,7 @@ private fun MiniButton(icon: Int, description: String, size: Dp, onClick: () -> 
     )
 }
 
-// Thin progress line along the bottom of the mini player
+// Thin progress line along the top edge of the mini player
 @Composable
 private fun MiniProgress(modifier: Modifier) {
     val progress = remember { mutableFloatStateOf(0f) }
@@ -1350,14 +1360,14 @@ private fun MiniProgress(modifier: Modifier) {
     Box(
         modifier
             .fillMaxWidth()
-            .height(2.dp)
-            .background((Color.Black withNight Color.White).copy(alpha = 0.1f))
+            .height(3.dp)
+            .background((Color.Black withNight Color.White).copy(alpha = 0.15f))
     ) {
         Box(
             Modifier
                 .fillMaxWidth(progress.floatValue)
                 .fillMaxHeight()
-                .background(MaterialTheme.colorScheme.primary)
+                .background(Color.Black withNight Color.White)
         )
     }
 }
