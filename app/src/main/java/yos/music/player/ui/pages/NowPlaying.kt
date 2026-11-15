@@ -240,6 +240,9 @@ private val MaterialFadeOutTransitionSpec
 
 private val WidePaneWidth = 360.dp
 
+// Tablets: top of the right card, level with the cover (22dp above the player column, 20dp above the cover, 7dp inside the image)
+private val WideCardTop = 49.dp
+
 @Composable
 private fun TranslationToggle(
     enabled: Boolean,
@@ -430,7 +433,7 @@ fun NowPlaying(
                 Modifier
                     .fillMaxSize()
                     .then(sideModifier)
-                    .padding(top = 24.dp, bottom = 24.dp)
+                    .padding(top = WideCardTop, bottom = 24.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color.Black.copy(alpha = 0.22f))
             )
@@ -445,7 +448,7 @@ fun NowPlaying(
                         // room for the tabs above, and kept inside the dark card
                         .then(
                             if (wide) Modifier
-                                .padding(top = 80.dp, bottom = 24.dp)
+                                .padding(top = WideCardTop + 56.dp, bottom = 24.dp)
                                 .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
                             else Modifier
                         )
@@ -657,7 +660,7 @@ fun NowPlaying(
                         Modifier
                             .fillMaxSize()
                             .then(sideModifier)
-                            .padding(top = 80.dp)
+                            .padding(top = WideCardTop + 56.dp)
                     ) {
                         PlayingList(
                             shuffleModeEnabledLambda = { shuffleModeEnabled.value },
@@ -679,7 +682,7 @@ fun NowPlaying(
                         Modifier
                             .fillMaxSize()
                             .then(sideModifier)
-                            .padding(top = 80.dp, bottom = 24.dp)
+                            .padding(top = WideCardTop + 56.dp, bottom = 24.dp)
                     )
                 }
             }
@@ -690,8 +693,7 @@ fun NowPlaying(
                     Modifier
                         .fillMaxWidth()
                         .then(sideModifier)
-                        // the player has no status bar inset here, so leave room for it by hand
-                        .padding(top = 34.dp),
+                        .padding(top = WideCardTop + 10.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     val tabs = listOf(Lyric, PlayingList, NowPlayingPage.Info)
@@ -870,7 +872,7 @@ private fun ColumnScope.Album(
         // tablets: 25 + the cover's 7dp = the 32dp margin of the title and controls below
         .padding(horizontal = if (wide) 25.dp else 15.dp)
         .padding(bottom = if (wide) 0.dp else 33.dp),
-    contentAlignment = Alignment.BottomCenter
+    contentAlignment = if (wide) Alignment.TopCenter else Alignment.BottomCenter
 ) {
     val springSpec: AnimationSpec<Float> = remember("Album_springSpec") {
         SpringSpec(stiffness = 300f, dampingRatio = 1f, visibilityThreshold = 0.001f)
