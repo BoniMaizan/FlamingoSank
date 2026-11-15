@@ -57,6 +57,11 @@ fun ExoPlayerSettings(navController: NavController) =
                                     "FFmpeg",
                                     "System"
                                 ),
+                                labels = listOf(
+                                    stringResource(R.string.option_auto),
+                                    "FFmpeg",
+                                    stringResource(R.string.option_system)
+                                ),
                                 value = SettingsLibrary.Codec,
                                 onValueChange = {
                                     SettingsLibrary.Codec = it

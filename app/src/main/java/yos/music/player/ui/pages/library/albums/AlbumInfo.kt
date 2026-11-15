@@ -202,7 +202,7 @@ fun AlbumInfo(
                         )
 
                         Text(
-                            text = "ALBUM",
+                            text = stringResource(R.string.album_info_label),
                             fontSize = 11.5.sp,
                             modifier = Modifier
                                 .alpha(0.4f)

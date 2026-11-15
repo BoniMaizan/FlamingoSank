@@ -41,6 +41,11 @@ fun UserInterfaceSetting(navController: NavController) =
                                     "Dark",
                                     "Light"
                                 ),
+                                labels = listOf(
+                                    stringResource(R.string.option_auto),
+                                    stringResource(R.string.option_dark),
+                                    stringResource(R.string.option_light)
+                                ),
                                 value = SettingsLibrary.CustomTheme,
                                 onValueChange = {
                                     SettingsLibrary.CustomTheme = it

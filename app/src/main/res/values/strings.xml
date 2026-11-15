@@ -207,4 +207,9 @@
     <string name="settings_audio_equalizer_speed">Playback Speed</string>
     <string name="settings_audio_equalizer_keep_pitch">Keep Voice Pitch</string>
     <string name="settings_audio_equalizer_keep_pitch_desc">When off, faster playback also sounds higher, like a tape.</string>
+    <string name="album_info_label">ALBUM</string>
+    <string name="option_auto">Auto</string>
+    <string name="option_dark">Dark</string>
+    <string name="option_light">Light</string>
+    <string name="option_system">System</string>
 </resources>

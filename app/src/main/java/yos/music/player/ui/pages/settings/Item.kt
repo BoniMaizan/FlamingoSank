@@ -41,7 +41,9 @@ fun SelectItem(
     desc: String? = null,
     items: List<String>,
     onValueChange: (String) -> Unit,
-    value: String
+    value: String,
+    // shown text per item; the stored value stays the untranslated item
+    labels: List<String> = items
 ) {
     val expanded = rememberSaveable {
         mutableStateOf(false)
@@ -56,7 +58,7 @@ fun SelectItem(
                     .alpha(0.4f), verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = value, fontSize = 15.sp
+                    text = labels.getOrElse(items.indexOf(value)) { value }, fontSize = 15.sp
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 /*Icon(
@@ -85,9 +87,9 @@ fun SelectItem(
                     //.background(Color(0x0D333333) withNight Color(0x0DF1F1F1))
                     .padding(vertical = 10.dp)
             ) {
-                items.forEach {
+                items.forEachIndexed { i, it ->
                     key(it) {
-                        SelectObjectItem(content = it, onValueChange) { newValue ->
+                        SelectObjectItem(content = it, onValueChange, label = labels[i]) { newValue ->
                             expanded.value = newValue
                         }
                     }
@@ -101,6 +103,7 @@ fun SelectItem(
 fun SelectObjectItem(
     content: String,
     onValueChange: (String) -> Unit,
+    label: String = content,
     expandedOnChanged: (Boolean) -> Unit
 ) =
     Box(
@@ -111,7 +114,7 @@ fun SelectObjectItem(
                 expandedOnChanged(false)
             }) {
         Text(
-            text = content, modifier = Modifier
+            text = label, modifier = Modifier
                 .padding(horizontal = 18.5.dp, vertical = 8.dp)
                 .alpha(0.6f)
         )
