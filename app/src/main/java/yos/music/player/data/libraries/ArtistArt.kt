@@ -11,7 +11,8 @@ import java.net.URLEncoder
 
 // Artist photo and logo from TheAudioDB, looked up once per artist and kept in the app's files
 object ArtistArt {
-    data class Art(val photo: String?, val logo: String?)
+    // photo: a wide picture for banners; thumb: the square profile picture
+    data class Art(val photo: String?, val thumb: String?, val logo: String?)
 
     // shortcut: TheAudioDB's public test key; a personal key belongs here if lookups start failing
     private const val API = "https://www.theaudiodb.com/api/v1/json/123/search.php?s="
@@ -19,7 +20,7 @@ object ArtistArt {
 
     suspend fun get(context: Context, artist: String): Art? = withContext(Dispatchers.IO) {
         memory[artist]?.let { return@withContext it }
-        val dir = File(context.filesDir, "artist_art2").apply { mkdirs() }
+        val dir = File(context.filesDir, "artist_art3").apply { mkdirs() }
         val file = File(dir, URLEncoder.encode(artist, "UTF-8").take(150) + ".json")
         val cached = runCatching { if (file.exists()) parse(JSONObject(file.readText())) else null }.getOrNull()
         val art = cached ?: runCatching {
@@ -34,7 +35,8 @@ object ArtistArt {
                     o.optString("strArtistAlternate").split(",").any { it.trim() == artist }
             }
             val saved = JSONObject()
-                .put("photo", found?.let { pick(it, "strArtistFanart", "strArtistWideThumb", "strArtistThumb") } ?: "")
+                .put("photo", found?.let { pick(it, "strArtistFanart", "strArtistWideThumb") } ?: "")
+                .put("thumb", found?.let { pick(it, "strArtistThumb") } ?: "")
                 .put("logo", found?.let { pick(it, "strArtistLogo") } ?: "")
             // "not found" is saved too, so the service is asked only once per artist
             file.writeText(saved.toString())
@@ -49,5 +51,9 @@ object ArtistArt {
         keys.firstNotNullOfOrNull { k -> o.optString(k).takeIf { it.startsWith("http") } }
 
     private fun parse(o: JSONObject) =
-        Art(o.optString("photo").takeIf { it.isNotBlank() }, o.optString("logo").takeIf { it.isNotBlank() })
+        Art(
+            o.optString("photo").takeIf { it.isNotBlank() },
+            o.optString("thumb").takeIf { it.isNotBlank() },
+            o.optString("logo").takeIf { it.isNotBlank() }
+        )
 }
