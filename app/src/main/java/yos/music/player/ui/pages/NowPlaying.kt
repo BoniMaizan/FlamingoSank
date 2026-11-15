@@ -860,9 +860,10 @@ private fun ColumnScope.Album(
 ) = Box(
     Modifier
         .weight(1f)
+        .then(if (wide) Modifier.fillMaxWidth() else Modifier)
         .padding(top = 20.dp)
         .padding(horizontal = 15.dp)
-        .padding(bottom = if (wide) 18.dp else 33.dp),
+        .padding(bottom = if (wide) 0.dp else 33.dp),
     contentAlignment = Alignment.BottomCenter
 ) {
     val springSpec: AnimationSpec<Float> = remember("Album_springSpec") {
@@ -880,9 +881,13 @@ private fun ColumnScope.Album(
     )
 
     YosWrapper {
-        val dp = (7 + (27 * scale.value)).dp
+        // Phones shrink the cover on pause; tablets keep one size
+        val dp = if (wide) 7.dp else (7 + (27 * scale.value)).dp
         // Tablets: a square as tall as the space allows, so the wider column doesn't push the cover off the top
-        Box(if (wide) Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier) {
+        Box(
+            if (wide) Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier,
+            contentAlignment = Alignment.BottomCenter
+        ) {
         ShadowImageWithCache(
             dataLambda = albumUrl, contentDescription = null, modifier = Modifier
                 .fillMaxWidth()
