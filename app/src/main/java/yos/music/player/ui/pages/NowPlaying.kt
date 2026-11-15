@@ -2,6 +2,7 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.rounded.DragHandle
 import androidx.compose.ui.zIndex
@@ -1064,6 +1065,43 @@ private fun PlayingList(
                 val dragOffset = remember { mutableFloatStateOf(0f) }
                 val dragOrder = remember { mutableStateOf<List<YosMediaItem>?>(null) }
                 val itemPx = with(LocalDensity.current) { 64.dp.toPx() }
+                // swap the held song with its neighbour once it is dragged past half a row
+                val settle: (YosMediaItem) -> Unit = { music ->
+                    dragOrder.value?.let { list ->
+                        val i = list.indexOf(music)
+                        val target = when {
+                            dragOffset.floatValue > itemPx / 2 && i < list.lastIndex -> i + 1
+                            dragOffset.floatValue < -itemPx / 2 && i > 0 -> i - 1
+                            else -> i
+                        }
+                        if (target != i) {
+                            dragOrder.value = list.toMutableList().apply { add(target, removeAt(i)) }
+                            dragOffset.floatValue -= (target - i) * itemPx
+                        }
+                    }
+                }
+                // near the top or bottom edge the list scrolls by itself; the held song stays under the finger
+                LaunchedEffect(dragged.value) {
+                    val music = dragged.value ?: return@LaunchedEffect
+                    while (true) {
+                        val info = state.layoutInfo
+                        val item = info.visibleItemsInfo.firstOrNull { it.key == music }
+                        if (item != null) {
+                            val top = item.offset + dragOffset.floatValue
+                            val bottom = top + item.size
+                            val speed = when {
+                                top < info.viewportStartOffset + itemPx -> -(info.viewportStartOffset + itemPx - top) / 4
+                                bottom > info.viewportEndOffset - itemPx -> (bottom - info.viewportEndOffset + itemPx) / 4
+                                else -> 0f
+                            }
+                            if (speed != 0f) {
+                                dragOffset.floatValue += state.scrollBy(speed)
+                                settle(music)
+                            }
+                        }
+                        delay(16)
+                    }
+                }
                 val endDrag: (Boolean) -> Unit = { commit ->
                     val music = dragged.value
                     val to = music?.let { dragOrder.value?.indexOf(it) } ?: -1
@@ -1130,17 +1168,7 @@ private fun PlayingList(
                                         onDrag = { change, amount ->
                                             change.consume()
                                             dragOffset.floatValue += amount.y
-                                            val list = dragOrder.value ?: return@detectDragGestures
-                                            val i = list.indexOf(music)
-                                            val target = when {
-                                                dragOffset.floatValue > itemPx / 2 && i < list.lastIndex -> i + 1
-                                                dragOffset.floatValue < -itemPx / 2 && i > 0 -> i - 1
-                                                else -> i
-                                            }
-                                            if (target != i) {
-                                                dragOrder.value = list.toMutableList().apply { add(target, removeAt(i)) }
-                                                dragOffset.floatValue -= (target - i) * itemPx
-                                            }
+                                            settle(music)
                                         },
                                         onDragEnd = { endDrag(true) },
                                         onDragCancel = { endDrag(false) }
