@@ -292,7 +292,7 @@ fun NowPlaying(
         val wide = configuration.screenWidthDp > configuration.screenHeightDp && configuration.screenWidthDp >= 600
         val screenWidth = configuration.screenWidthDp.dp
         // the player column takes 38% of the width, like the mockup
-        val paneWidth = (screenWidth * 0.38f).coerceIn(WidePaneWidth, 520.dp)
+        val paneWidth = (screenWidth * 0.35f).coerceIn(WidePaneWidth, 520.dp)
         val paneStart by animateDpAsState(
             targetValue = when {
                 !wide -> 0.dp
@@ -862,7 +862,8 @@ private fun ColumnScope.Album(
         .weight(1f)
         .then(if (wide) Modifier.fillMaxWidth() else Modifier)
         .padding(top = 20.dp)
-        .padding(horizontal = 15.dp)
+        // tablets: 25 + the cover's 7dp = the 32dp margin of the title and controls below
+        .padding(horizontal = if (wide) 25.dp else 15.dp)
         .padding(bottom = if (wide) 0.dp else 33.dp),
     contentAlignment = Alignment.BottomCenter
 ) {
@@ -885,7 +886,7 @@ private fun ColumnScope.Album(
         val dp = if (wide) 7.dp else (7 + (27 * scale.value)).dp
         // Tablets: a square as tall as the space allows, so the wider column doesn't push the cover off the top
         Box(
-            if (wide) Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier,
+            if (wide) Modifier.aspectRatio(1f) else Modifier,
             contentAlignment = Alignment.BottomCenter
         ) {
         ShadowImageWithCache(
