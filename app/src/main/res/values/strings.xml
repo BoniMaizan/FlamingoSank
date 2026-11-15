@@ -18,6 +18,7 @@
     <string name="nowplaying_tab_lyrics">Lyrics</string>
     <string name="nowplaying_tab_up_next">Up Next</string>
     <string name="nowplaying_tab_info">Info</string>
+    <string name="nowplaying_playing_from">Playing from</string>
     <string name="nowplaying_info_title">Title</string>
     <string name="nowplaying_info_artist">Artist</string>
     <string name="nowplaying_info_album">Album</string>

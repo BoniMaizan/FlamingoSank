@@ -2,6 +2,10 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import yos.music.player.ui.widgets.basic.Segmented
@@ -287,14 +291,16 @@ fun NowPlaying(
         val configuration = LocalConfiguration.current
         val wide = configuration.screenWidthDp > configuration.screenHeightDp && configuration.screenWidthDp >= 600
         val screenWidth = configuration.screenWidthDp.dp
+        // the player column takes 38% of the width, like the mockup
+        val paneWidth = (screenWidth * 0.38f).coerceIn(WidePaneWidth, 520.dp)
         val paneStart by animateDpAsState(
             targetValue = when {
                 !wide -> 0.dp
-                else -> (screenWidth / 2 - WidePaneWidth) / 2
+                else -> (screenWidth / 2 - paneWidth) / 2
             }, label = "NowPlaying_paneStart"
         )
         // wrapContentWidth: the Surface parent forces its full width as a minimum
-        val paneModifier = if (wide) Modifier.wrapContentWidth(Alignment.Start).padding(start = paneStart).width(WidePaneWidth) else Modifier
+        val paneModifier = if (wide) Modifier.wrapContentWidth(Alignment.Start).padding(start = paneStart).width(paneWidth) else Modifier
         val sideModifier = if (wide) Modifier.padding(start = screenWidth / 2, end = 32.dp) else Modifier
         // Tablets always show a side pane: the queue unless lyrics or info were picked
         if (wide) LaunchedEffect(nowPageLambda()) {
@@ -512,7 +518,7 @@ fun NowPlaying(
                                         .clickable(enabled = false, onClick = {})
                                 ) {
                                     YosWrapper {
-                                        Column(Modifier.fillMaxHeight(0.595f)) {
+                                        Column(Modifier.fillMaxHeight(if (wide) 0.64f else 0.595f)) {
                                             val isVisible = wide || nowPageLambda() == Album
 
                                             Album(
@@ -523,7 +529,8 @@ fun NowPlaying(
                                                     visible = isVisible
                                                 ),
                                                 albumUrl = { thisMusicPlaying.value?.thumb },
-                                                isPlaying = isPlayingStatusLambda
+                                                isPlaying = isPlayingStatusLambda,
+                                                wide = wide
                                             )
                                             AnimatedContent(
                                                 targetState = thisMusicPlaying.value,
@@ -694,8 +701,20 @@ fun NowPlaying(
                         onSelect = { nowPageOnChanged(tabs[it]) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(start = 16.dp, end = 116.dp)
                     )
+                    Box(
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 16.dp)
+                    ) {
+                        QueueModeButtons(
+                            shuffleModeEnabledLambda = { shuffleModeEnabled.value },
+                            shuffleModeOnChanged = { shuffleModeEnabled.value = it },
+                            repeatModeLambda = { repeatMode.intValue },
+                            repeatModeOnChanged = { repeatMode.intValue = it }
+                        )
+                    }
                 }
             }
 
@@ -710,7 +729,7 @@ fun NowPlaying(
                     Box(
                         Modifier
                             /*.fillMaxHeight(0.385f)*/
-                            .fillMaxHeight(0.437f)
+                            .fillMaxHeight(if (wide) 0.4f else 0.437f)
                             .fillMaxWidth()
                     ) {
                         println("重组：控制区域外部")
@@ -836,13 +855,14 @@ fun NowPlaying(
 private fun ColumnScope.Album(
     modifier: Modifier,
     albumUrl: () -> Uri?,
-    isPlaying: () -> Boolean
+    isPlaying: () -> Boolean,
+    wide: Boolean = false
 ) = Box(
     Modifier
         .weight(1f)
         .padding(top = 20.dp)
         .padding(horizontal = 15.dp)
-        .padding(bottom = 33.dp),
+        .padding(bottom = if (wide) 18.dp else 33.dp),
     contentAlignment = Alignment.BottomCenter
 ) {
     val springSpec: AnimationSpec<Float> = remember("Album_springSpec") {
@@ -861,6 +881,8 @@ private fun ColumnScope.Album(
 
     YosWrapper {
         val dp = (7 + (27 * scale.value)).dp
+        // Tablets: a square as tall as the space allows, so the wider column doesn't push the cover off the top
+        Box(if (wide) Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true) else Modifier) {
         ShadowImageWithCache(
             dataLambda = albumUrl, contentDescription = null, modifier = Modifier
                 .fillMaxWidth()
@@ -874,6 +896,7 @@ private fun ColumnScope.Album(
             imageQuality = ImageQuality.RAW,
             shadowOverlay = true
         )
+        }
     }
 }
 
@@ -914,9 +937,22 @@ private fun PlayingList(
                     .fillMaxWidth()
                     .padding(horizontal = 30.dp)
                     .padding(top = 10.dp)
-                    .height(65.dp), verticalAlignment = Alignment.CenterVertically
+                    .height(if (fullHeight) 36.dp else 65.dp), verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
+                val favTitle = stringResource(id = R.string.page_library_playlists_fav_title)
+                val songsTitle = stringResource(id = R.string.page_library_songs)
+                val source = remember(musicList.value) { queueSource(musicList.value, favTitle, songsTitle) }
+                if (fullHeight && source != null) Text(
+                    text = buildAnnotatedString {
+                        append(stringResource(id = R.string.nowplaying_playing_from) + " ")
+                        withStyle(SpanStyle(color = Color.White, fontWeight = FontWeight.Medium)) { append(source) }
+                    },
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                ) else Column(
                     Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -941,110 +977,9 @@ private fun PlayingList(
                     )
                 }
 
-                Row(
-                    modifier = Modifier
-                        .overlayEffect()
-                        .alpha(0.6f)
-                ) {
-                    val dp = 36.dp
-                    YosWrapper {
-                        val shuffleBackgroundAlpha =
-                            animateFloatAsState(targetValue = if (shuffleModeEnabledLambda()) 0.9f else 0f)
-                        Box(
-                            modifier = Modifier
-                                .clickable(
-                                    onClick = {
-                                        Vibrator.click(context)
-                                        mediaControl?.shuffleModeEnabled =
-                                            !shuffleModeEnabledLambda()
-                                        mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
-                                        shuffleModeOnChanged(!shuffleModeEnabledLambda())
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() })
-                                .size(36.dp)
-                                .background(
-                                    Color.White.copy(alpha = shuffleBackgroundAlpha.value),
-                                    shape = YosRoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            YosWrapper {
-                                val shuffleIconTint =
-                                    animateColorAsState(targetValue = if (shuffleModeEnabledLambda()) Color.Black else Color.White)
-                                Icon(
-                                    painterResource(id = R.drawable.ic_nowplaying_shuffle),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .size(dp),
-                                    tint = shuffleIconTint.value
-                                )
-                            }
-                        }
-                    }
-                    YosWrapper {
-                        val repeatHighlight =
-                            repeatModeLambda() == REPEAT_MODE_ALL || repeatModeLambda() == REPEAT_MODE_ONE
-                        val repeatBackgroundAlpha =
-                            animateFloatAsState(targetValue = if (repeatHighlight) 0.9f else 0f)
-                        Box(
-                            modifier = Modifier
-                                .clickable(
-                                    onClick = {
-                                        Vibrator.click(context)
-                                        val targetMode = when (repeatModeLambda()) {
-                                            REPEAT_MODE_OFF -> {
-                                                REPEAT_MODE_ALL
-                                            }
-
-                                            REPEAT_MODE_ALL -> {
-                                                REPEAT_MODE_ONE
-                                            }
-
-                                            else -> {
-                                                REPEAT_MODE_OFF
-                                            }
-                                        }
-                                        mediaControl?.repeatMode = targetMode
-                                        mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
-                                        repeatModeOnChanged(targetMode)
-                                    },
-                                    indication = null,
-                                    interactionSource = remember { MutableInteractionSource() })
-                                .padding(start = 10.dp)
-                                .size(36.dp)
-                                .background(
-                                    Color.White.copy(alpha = repeatBackgroundAlpha.value),
-                                    shape = YosRoundedCornerShape(10.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            YosWrapper {
-                                AnimatedContent(targetState = repeatModeLambda(), transitionSpec = {
-                                    fadeIn() togetherWith fadeOut()
-                                }) {
-                                    when (it) {
-                                        REPEAT_MODE_ONE -> Icon(
-                                            painterResource(id = R.drawable.ic_nowplaying_repeatone),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(dp),
-                                            tint = animateColorAsState(targetValue = if (repeatHighlight) Color.Black else Color.White).value
-                                        )
-
-                                        else -> Icon(
-                                            painterResource(id = R.drawable.ic_nowplaying_repeat),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(dp),
-                                            tint = animateColorAsState(targetValue = if (repeatHighlight) Color.Black else Color.White).value
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                if (!fullHeight) QueueModeButtons(
+                    shuffleModeEnabledLambda, shuffleModeOnChanged, repeatModeLambda, repeatModeOnChanged
+                )
             }
 
 
@@ -2468,4 +2403,130 @@ private fun SongInfoPane(music: YosMediaItem?, modifier: Modifier) {
             }
         }
     }
+}
+
+// Shuffle and repeat toggles: in the queue header on phones, beside the tabs on tablets
+@Composable
+internal fun QueueModeButtons(
+    shuffleModeEnabledLambda: () -> Boolean,
+    shuffleModeOnChanged: (Boolean) -> Unit,
+    repeatModeLambda: () -> Int,
+    repeatModeOnChanged: (Int) -> Unit
+) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier
+            .overlayEffect()
+            .alpha(0.6f)
+    ) {
+        val dp = 36.dp
+        YosWrapper {
+            val shuffleBackgroundAlpha =
+                animateFloatAsState(targetValue = if (shuffleModeEnabledLambda()) 0.9f else 0f)
+            Box(
+                modifier = Modifier
+                    .clickable(
+                        onClick = {
+                            Vibrator.click(context)
+                            mediaControl?.shuffleModeEnabled =
+                                !shuffleModeEnabledLambda()
+                            mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+                            shuffleModeOnChanged(!shuffleModeEnabledLambda())
+                        },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() })
+                    .size(36.dp)
+                    .background(
+                        Color.White.copy(alpha = shuffleBackgroundAlpha.value),
+                        shape = YosRoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                YosWrapper {
+                    val shuffleIconTint =
+                        animateColorAsState(targetValue = if (shuffleModeEnabledLambda()) Color.Black else Color.White)
+                    Icon(
+                        painterResource(id = R.drawable.ic_nowplaying_shuffle),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(dp),
+                        tint = shuffleIconTint.value
+                    )
+                }
+            }
+        }
+        YosWrapper {
+            val repeatHighlight =
+                repeatModeLambda() == REPEAT_MODE_ALL || repeatModeLambda() == REPEAT_MODE_ONE
+            val repeatBackgroundAlpha =
+                animateFloatAsState(targetValue = if (repeatHighlight) 0.9f else 0f)
+            Box(
+                modifier = Modifier
+                    .clickable(
+                        onClick = {
+                            Vibrator.click(context)
+                            val targetMode = when (repeatModeLambda()) {
+                                REPEAT_MODE_OFF -> {
+                                    REPEAT_MODE_ALL
+                                }
+
+                                REPEAT_MODE_ALL -> {
+                                    REPEAT_MODE_ONE
+                                }
+
+                                else -> {
+                                    REPEAT_MODE_OFF
+                                }
+                            }
+                            mediaControl?.repeatMode = targetMode
+                            mediaControl?.let { YosPlaybackService().setCustomButtons(it) }
+                            repeatModeOnChanged(targetMode)
+                        },
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() })
+                    .padding(start = 10.dp)
+                    .size(36.dp)
+                    .background(
+                        Color.White.copy(alpha = repeatBackgroundAlpha.value),
+                        shape = YosRoundedCornerShape(10.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                YosWrapper {
+                    AnimatedContent(targetState = repeatModeLambda(), transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    }) {
+                        when (it) {
+                            REPEAT_MODE_ONE -> Icon(
+                                painterResource(id = R.drawable.ic_nowplaying_repeatone),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(dp),
+                                tint = animateColorAsState(targetValue = if (repeatHighlight) Color.Black else Color.White).value
+                            )
+
+                            else -> Icon(
+                                painterResource(id = R.drawable.ic_nowplaying_repeat),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(dp),
+                                tint = animateColorAsState(targetValue = if (repeatHighlight) Color.Black else Color.White).value
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Where the queue comes from: a playlist, the favourites, one album or the whole library
+private fun queueSource(list: List<YosMediaItem>?, favTitle: String, songsTitle: String): String? {
+    if (list.isNullOrEmpty()) return null
+    val uris = list.map { it.uri }.toSet()
+    PlayListLibrary.playList.firstOrNull { it.songDataList.toSet() == uris }?.let { return it.name }
+    if (FavPlayListLibrary.favPlayList.map { it.uri }.toSet() == uris) return favTitle
+    list.map { it.album }.distinct().singleOrNull()?.let { return it }
+    if (list.size == MusicLibrary.songs.size) return songsTitle
+    return null
 }
