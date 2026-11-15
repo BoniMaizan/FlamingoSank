@@ -28,13 +28,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,36 +78,40 @@ fun ArtistInfo(navController: NavController) {
         scope.launch(Dispatchers.IO) { MediaController.prepare(song, songs) }
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(horizontal = if (wide) 24.dp else 16.dp)
-    ) {
+    val pad = if (wide) 24.dp else 16.dp
+    val back = @Composable { tint: Color, m: Modifier ->
         Row(
-            Modifier
+            m
                 .padding(vertical = 10.dp)
                 .clickable { navController.popBackStack() },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 painterResource(id = R.drawable.ic_back), contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.height(16.dp)
+                tint = tint, modifier = Modifier.height(16.dp)
             )
             Text(
-                stringResource(id = R.string.page_library_artists), color = MaterialTheme.colorScheme.primary,
+                stringResource(id = R.string.page_library_artists), color = tint,
                 fontSize = 15.sp, modifier = Modifier.padding(start = 6.dp)
             )
         }
-        if (songs.isEmpty()) return@Column
+    }
 
-        // banner: the artist's photo, else the cover of one of their songs
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        if (songs.isEmpty()) {
+            back(MaterialTheme.colorScheme.primary, Modifier.statusBarsPadding().padding(horizontal = pad))
+            return@Column
+        }
+
+        // full-bleed header like the system music apps: the artist's photo edge to edge, under the status bar
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(if (wide) 260.dp else 220.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .height(if (wide) 420.dp else 340.dp)
                 .background(Color(0xFF26262A))
         ) {
             // the cover stays underneath, so a photo that fails to load leaves the cover showing
@@ -113,19 +120,27 @@ fun ArtistInfo(navController: NavController) {
                     model = ImageRequest.Builder(context).data(image).crossfade(true).build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    // faces sit in the upper part of artist photos: crop from there, not the middle
+                    alignment = BiasAlignment(0f, -0.6f),
                     modifier = Modifier.fillMaxSize()
                 )
             }
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f))
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.35f), 0.22f to Color.Transparent,
+                            0.5f to Color.Transparent, 0.8f to Color.Black.copy(alpha = 0.45f), 1f to Color.Black.copy(alpha = 0.85f)
+                        )
+                    )
             )
+            back(Color.White, Modifier.statusBarsPadding().padding(horizontal = pad))
             Row(
                 Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth()
-                    .padding(22.dp),
+                    .padding(horizontal = pad, vertical = 24.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 Column(Modifier.weight(1f)) {
@@ -144,7 +159,8 @@ fun ArtistInfo(navController: NavController) {
                         maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        stringResource(id = R.string.artist_counts, songs.size, albums.size),
+                        pluralStringResource(R.plurals.artist_songs, songs.size, songs.size) + " · " +
+                            pluralStringResource(R.plurals.artist_albums, albums.size, albums.size),
                         color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp,
                         modifier = Modifier.padding(top = 6.dp)
                     )
@@ -155,45 +171,47 @@ fun ArtistInfo(navController: NavController) {
                 }
             }
         }
-        if (!wide) Row(
-            Modifier.padding(top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            BannerButton(R.drawable.button_icon_play, stringResource(id = R.string.normal_button_play), Modifier.weight(1f)) { play(songs.first(), false) }
-            BannerButton(R.drawable.button_icon_shuffle, stringResource(id = R.string.normal_button_shuffle), Modifier.weight(1f)) { play(songs.random(), true) }
-        }
-
-        val songList = @Composable { m: Modifier ->
-            Column(m) {
-                SectionTitle(stringResource(id = R.string.page_library_songs))
-                songs.forEach { song -> SongRow(song) { play(song, false) } }
+        Column(Modifier.padding(horizontal = pad)) {
+            if (!wide) Row(
+                Modifier.padding(top = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                BannerButton(R.drawable.button_icon_play, stringResource(id = R.string.normal_button_play), Modifier.weight(1f)) { play(songs.first(), false) }
+                BannerButton(R.drawable.button_icon_shuffle, stringResource(id = R.string.normal_button_shuffle), Modifier.weight(1f)) { play(songs.random(), true) }
             }
-        }
-        val albumList = @Composable { m: Modifier ->
-            Column(m) {
-                SectionTitle(stringResource(id = R.string.page_library_albums))
-                albums.chunked(2).forEach { pair ->
-                    Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                        pair.forEach { (album, tracks) ->
-                            AlbumTile(album, tracks.first(), Modifier.weight(1f)) {
-                                LibraryObject.setTargetAlbumName(album)
-                                navController.toUI(UI.AlbumInfo)
+
+            val songList = @Composable { m: Modifier ->
+                Column(m) {
+                    SectionTitle(stringResource(id = R.string.page_library_songs))
+                    songs.forEach { song -> SongRow(song) { play(song, false) } }
+                }
+            }
+            val albumList = @Composable { m: Modifier ->
+                Column(m) {
+                    SectionTitle(stringResource(id = R.string.page_library_albums))
+                    albums.chunked(2).forEach { pair ->
+                        Row(Modifier.padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            pair.forEach { (album, tracks) ->
+                                AlbumTile(album, tracks.first(), Modifier.weight(1f)) {
+                                    LibraryObject.setTargetAlbumName(album)
+                                    navController.toUI(UI.AlbumInfo)
+                                }
                             }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
+            if (wide) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                songList(Modifier.weight(1f))
+                albumList(Modifier.width(280.dp))
+            } else {
+                songList(Modifier.padding(top = 8.dp))
+                albumList(Modifier)
+            }
+            // room for the mini player
+            Spacer(Modifier.height(140.dp))
         }
-        if (wide) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            songList(Modifier.weight(1f))
-            albumList(Modifier.width(280.dp))
-        } else {
-            songList(Modifier.padding(top = 8.dp))
-            albumList(Modifier)
-        }
-        // room for the mini player
-        Spacer(Modifier.height(140.dp))
     }
 }
 

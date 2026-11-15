@@ -22,7 +22,14 @@
     <string name="home_last_played">LAST PLAYED</string>
     <string name="home_jump_back_in">Jump Back In</string>
     <string name="home_jump_back_in_desc">Before that</string>
-    <string name="artist_counts">%1$d songs · %2$d albums</string>
+    <plurals name="artist_songs">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="artist_albums">
+        <item quantity="one">%d album</item>
+        <item quantity="other">%d albums</item>
+    </plurals>
     <string name="nowplaying_info_title">Title</string>
     <string name="nowplaying_info_artist">Artist</string>
     <string name="nowplaying_info_album">Album</string>
