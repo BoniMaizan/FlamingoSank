@@ -21,6 +21,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
+import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +75,8 @@ import yos.music.player.ui.widgets.effects.imageResolve
 import yos.music.player.ui.widgets.basic.Title
 import yos.music.player.ui.widgets.basic.YosWrapper
 
+private var recentCache: Pair<List<YosMediaItem>, List<YosMediaItem>>? = null
+
 @Composable
 fun Home(
     navController: NavController,
@@ -103,8 +107,11 @@ fun Home(
             item("RecentlyAdded") {
                 val songs = runCatching { MusicLibrary.songs }.getOrDefault(emptyList())
                 val context = LocalContext.current
-                // The library's own addDate is unreliable: ask MediaStore by media id
-                val recent = remember(songs) {
+                // The library's own addDate is unreliable: ask MediaStore by media id,
+                // off the main thread and kept between visits so Home opens at once
+                val recent = produceState(recentCache?.takeIf { it.first === songs }?.second ?: emptyList(), songs) {
+                    if (recentCache?.first === songs) return@produceState
+                    value = withContext(Dispatchers.IO) {
                     val added = runCatching {
                         context.contentResolver.query(
                             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -115,7 +122,9 @@ fun Home(
                         }
                     }.getOrNull().orEmpty()
                     songs.sortedByDescending { added[it.mediaId] ?: 0L }
-                }
+                    }
+                    recentCache = songs to value
+                }.value
                 if (wide) HomeAlbums(recent, navController)
                 else HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController, stringResource(id = R.string.home_recently_added_desc))
             }

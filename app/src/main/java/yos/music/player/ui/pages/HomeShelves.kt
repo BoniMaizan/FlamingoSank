@@ -247,9 +247,10 @@ private fun ShelfTitle(title: String, onSeeAll: () -> Unit) = Row(
 // Tablets: the artists last listened to first, then the rest of the library
 @Composable
 fun HomeArtists(history: List<YosMediaItem>, navController: NavController) {
+    // history first; only library artists are kept, checked one by one until the row is full
     val artists = remember(history) {
-        (history.mapNotNull { it.artistsList?.firstOrNull() } + MusicLibrary.artists)
-            .distinct().filter { MusicLibrary.Artist[it].isNotEmpty() }.take(SHELF_SIZE)
+        (history.asSequence().mapNotNull { it.artistsList?.firstOrNull() } + MusicLibrary.artists.asSequence())
+            .distinct().filter { MusicLibrary.Artist[it].isNotEmpty() }.take(SHELF_SIZE).toList()
     }
     if (artists.isEmpty()) return
     ShelfTitle(stringResource(id = R.string.home_your_artists)) { navController.toUI(UI.LocalArtists) }
