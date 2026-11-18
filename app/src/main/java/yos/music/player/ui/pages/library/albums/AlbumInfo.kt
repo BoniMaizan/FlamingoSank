@@ -45,6 +45,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import yos.music.player.data.libraries.ArtistArt
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -247,15 +256,40 @@ fun AlbumInfo(
                     }
             }
             val wide = isWideLayout()
+            val playing = MediaController.musicPlaying.value
+            // tablets: the cover's glow behind the top of the page, as in the player
+            if (wide) Box(Modifier.fillMaxWidth().height(440.dp)) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current).data(songs.first().thumb).size(256).build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().blur(60.dp).alpha(0.5f)
+                )
+                Box(
+                    Modifier.fillMaxSize().background(
+                        Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background))
+                    )
+                )
+            }
             Row(Modifier.fillMaxSize()) {
             // Tablets: cover and buttons stay on the left while the tracks scroll on the right
             if (wide) Column(
                 Modifier
-                    .width(380.dp)
+                    .width(360.dp)
                     .fillMaxHeight()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 54.dp, bottom = 134.dp)
-            ) { header() }
+                    .statusBarsPadding()
+                    .padding(top = 64.dp, bottom = 134.dp)
+                    .padding(horizontal = 28.dp)
+            ) {
+                WideHeader(albumName.value, songs, mainArtists.value.firstOrNull(), mainArtistsName.value,
+                    stringResource(R.string.page_library_album_info_others, songCount, totalMinutes),
+                    onPlay = { scope.launch(Dispatchers.IO) { MediaController.prepare(songs.first(), songs) } },
+                    onShuffle = {
+                        MediaController.mediaControl?.shuffleModeEnabled = true
+                        scope.launch(Dispatchers.IO) { MediaController.prepare(songs.random(), songs) }
+                    })
+            }
             LazyColumn(
                 state = state,
                 modifier = Modifier
@@ -269,7 +303,7 @@ fun AlbumInfo(
             ) {
                 if (!wide) item("AlbumInfo") { header() }
 
-                item {
+                if (!wide) item {
                     AlbumDivider()
                 }
 
@@ -280,8 +314,15 @@ fun AlbumInfo(
                 ) { index, music ->
                     key(music) {
                         AlbumSongsItem(
+                            // tablets: rounded rows, the song playing tinted pink
+                            modifier = if (wide) Modifier
+                                .padding(end = 18.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (music == playing) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else Color.Transparent)
+                            else Modifier,
                             music = music,
-                            mainArtists = mainArtists.value
+                            mainArtists = mainArtists.value,
+                            highlight = wide && music == playing
                         ) {
                             scope.launch(Dispatchers.IO) {
                                 MediaController.prepare(
@@ -293,7 +334,7 @@ fun AlbumInfo(
                     }
 
                     key(index) {
-                        val needDivider = index < songs.size - 1
+                        val needDivider = !wide && index < songs.size - 1
                         if (needDivider) {
                             Spacer(
                                 modifier = Modifier
@@ -307,11 +348,11 @@ fun AlbumInfo(
                     }
                 }
 
-                item {
+                if (!wide) item {
                     AlbumDivider()
                 }
 
-                item("AlbumInfo_others") {
+                if (!wide) item("AlbumInfo_others") {
                     Text(
                         text = stringResource(
                             id = R.string.page_library_album_info_others,
@@ -366,6 +407,58 @@ fun AlbumInfo(
         }
     }
 
+// tablets: cover, bold title, the artist with their photo, and pill buttons, all aligned left
+@Composable
+private fun WideHeader(
+    album: String, songs: List<YosMediaItem>, artist: String?, artistsName: String, info: String,
+    onPlay: () -> Unit, onShuffle: () -> Unit
+) {
+    val context = LocalContext.current
+    val photo = remember(artist) { mutableStateOf<String?>(null) }
+    LaunchedEffect(artist) {
+        if (artist != null) photo.value = ArtistArt.get(context, artist)?.thumb?.let { ArtistArt.local(context, it) }
+    }
+    ShadowImage(
+        modifier = Modifier.fillMaxWidth(),
+        dataLambda = { songs.getOrNull(0)?.thumb },
+        contentDescription = null,
+        cornerRadius = 14.dp,
+        imageQuality = ImageQuality.RAW,
+        shadowType = ShadowType.Medium
+    )
+    Text(album, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
+    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (photo.value != null) AsyncImage(
+            model = photo.value, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = Modifier.padding(end = 8.dp).size(26.dp).clip(CircleShape)
+        )
+        Text(artistsName, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.primary,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    Text(info, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp).alpha(0.5f))
+    Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        PillButton(R.drawable.button_icon_play, stringResource(R.string.normal_button_play), true, Modifier.weight(1f), onPlay)
+        PillButton(R.drawable.button_icon_shuffle, stringResource(R.string.normal_button_shuffle), false, Modifier.weight(1f), onShuffle)
+    }
+}
+
+@Composable
+private fun PillButton(icon: Int, label: String, primary: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val fg = if (primary) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.onBackground
+    Row(
+        modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.onBackground.copy(alpha = if (primary) 1f else 0.14f))
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(painterResource(id = icon), contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+        Text(label, color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
+    }
+}
+
 @Composable
 fun NormalButton(icon: Painter, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
@@ -416,8 +509,10 @@ private fun AlbumSongsItem(
     modifier: Modifier = Modifier,
     music: YosMediaItem,
     mainArtists: List<String>,
+    highlight: Boolean = false,
     onClick: () -> Unit
 ) {
+    val tint = if (highlight) MaterialTheme.colorScheme.primary else Color.Unspecified
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -434,7 +529,8 @@ private fun AlbumSongsItem(
             Text(
                 text = "${music.trackNumber?:"-"}",
                 fontSize = 16.sp,
-                modifier = Modifier.alpha(0.4f),
+                color = tint,
+                modifier = Modifier.alpha(if (highlight) 1f else 0.4f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -445,6 +541,8 @@ private fun AlbumSongsItem(
             Text(
                 text = music.title ?: defaultTitle,
                 fontSize = 16.sp,
+                color = tint,
+                fontWeight = if (highlight) FontWeight.SemiBold else null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 20.sp
