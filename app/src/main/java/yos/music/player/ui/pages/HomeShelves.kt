@@ -5,6 +5,13 @@ import yos.music.player.ui.theme.withNight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.remember
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import yos.music.player.data.libraries.MusicLibrary
+import yos.music.player.data.libraries.artistsList
+import yos.music.player.ui.pages.library.artists.ArtistTile
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Icon
@@ -148,139 +155,129 @@ fun HomeShelf(
     }
 }
 
-// Tablets: the last song played on the left, the ones before it on the right
+// Tablets: a banner on the last song played, its cover blurred behind
 @Composable
 fun HomeHero(history: List<YosMediaItem>) {
     val music = history.firstOrNull() ?: return
     val scope = rememberCoroutineScope()
     val queue = history.take(SHELF_SIZE)
-    val play: () -> Unit = { scope.launch(Dispatchers.IO) { MediaController.prepare(music, queue) } }
-    val card = (Color.Black withNight Color.White).copy(alpha = 0.07f)
-    Row(
+    val play: (Boolean) -> Unit = { shuffle ->
+        MediaController.mediaControl?.shuffleModeEnabled = shuffle
+        scope.launch(Dispatchers.IO) { MediaController.prepare(if (shuffle) queue.random() else music, queue) }
+    }
+    val cover = ImageRequest.Builder(LocalContext.current).data(music.thumb)
+        .crossfade(true)
+        .placeholder(R.drawable.placeholder_music_default_artwork)
+        .error(R.drawable.placeholder_music_default_artwork)
+        .fallback(R.drawable.placeholder_music_default_artwork).build()
+    Box(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .padding(top = 12.dp, bottom = 6.dp)
-            .height(236.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-    Row(
-        Modifier
-            .weight(1.15f)
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(14.dp))
-            .background(card)
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .height(200.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF1C1C1E))
+            .clickable { play(false) }
     ) {
         AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current).data(music.thumb)
-                .crossfade(true)
-                .placeholder(R.drawable.placeholder_music_default_artwork)
-                .error(R.drawable.placeholder_music_default_artwork)
-                .fallback(R.drawable.placeholder_music_default_artwork).build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(170.dp)
-                .clip(YosRoundedCornerShape(12.dp))
-                .clickable(onClick = play)
+            model = cover, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().blur(40.dp)
         )
-        Column(
-            Modifier
-                .weight(1f)
-                .padding(start = 18.dp)
-        ) {
-            Text(
-                text = stringResource(id = R.string.home_last_played),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Black.copy(alpha = 0.2f)))))
+        Row(Modifier.fillMaxSize().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
+            AsyncImage(
+                model = cover, contentDescription = null, contentScale = ContentScale.Crop,
+                modifier = Modifier.size(164.dp).clip(YosRoundedCornerShape(14.dp))
             )
-            Text(
-                text = music.title ?: defaultTitle,
-                fontSize = 26.sp,
-                lineHeight = 30.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 6.dp)
-            )
-            Text(
-                text = music.artistsName ?: defaultArtistsName,
-                fontSize = 18.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .alpha(0.6f)
-            )
-            music.album?.let {
+            Column(Modifier.weight(1f).padding(start = 22.dp)) {
                 Text(
-                    text = it,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .padding(top = 2.dp)
-                        .alpha(0.45f)
+                    stringResource(id = R.string.home_jump_back_in).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp, color = Color.White.copy(alpha = 0.8f)
+                )
+                Text(
+                    music.title ?: defaultTitle, fontSize = 30.sp, lineHeight = 34.sp, fontWeight = FontWeight.Black, color = Color.White,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    music.artistsName ?: defaultArtistsName, fontSize = 16.sp, color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)
                 )
             }
-            Row(
-                Modifier
-                    .padding(top = 20.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = play)
-                    .padding(horizontal = 22.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painterResource(id = R.drawable.button_icon_play),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    text = stringResource(id = R.string.normal_button_play),
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(start = 8.dp)
-                )
+            Row(Modifier.padding(start = 16.dp, end = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeroPill(R.drawable.button_icon_play, stringResource(id = R.string.home_resume), true) { play(false) }
+                HeroPill(R.drawable.button_icon_shuffle, stringResource(id = R.string.normal_button_shuffle), false) { play(true) }
             }
         }
     }
-    Column(
+}
+
+@Composable
+private fun HeroPill(icon: Int, label: String, primary: Boolean, onClick: () -> Unit) {
+    val fg = if (primary) Color.Black else Color.White
+    Row(
         Modifier
-            .weight(1f)
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(14.dp))
-            .background(card)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(if (primary) Color.White else Color.White.copy(alpha = 0.18f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                text = stringResource(id = R.string.home_jump_back_in),
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = stringResource(id = R.string.home_jump_back_in_desc),
-                fontSize = 12.sp,
-                modifier = Modifier
-                    .padding(start = 10.dp)
-                    .alpha(0.5f)
-            )
+        Icon(painterResource(id = icon), contentDescription = null, tint = fg, modifier = Modifier.size(16.dp))
+        Text(label, color = fg, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun ShelfTitle(title: String, onSeeAll: () -> Unit) = Row(
+    Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 20.dp)
+        .padding(top = 18.dp, bottom = 10.dp),
+    verticalAlignment = Alignment.Bottom
+) {
+    Text(title, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f))
+    Text(
+        stringResource(id = R.string.home_see_all), fontSize = 15.sp, color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable(onClick = onSeeAll)
+    )
+}
+
+// Tablets: the artists last listened to first, then the rest of the library
+@Composable
+fun HomeArtists(history: List<YosMediaItem>, navController: NavController) {
+    val artists = remember(history) {
+        (history.mapNotNull { it.artistsList?.firstOrNull() } + MusicLibrary.artists)
+            .distinct().filter { MusicLibrary.Artist[it].isNotEmpty() }.take(SHELF_SIZE)
+    }
+    if (artists.isEmpty()) return
+    ShelfTitle(stringResource(id = R.string.home_your_artists)) { navController.toUI(UI.LocalArtists) }
+    LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        items(artists, key = { it }) { artist ->
+            ArtistTile(artist, Modifier.width(128.dp)) {
+                LibraryObject.setTargetArtistName(artist)
+                navController.toUI(UI.ArtistInfo)
+            }
         }
-        history.drop(1).take(4).forEach { song ->
-            Row(
+    }
+}
+
+// Tablets: albums in the order their files arrived on the device
+@Composable
+fun HomeAlbums(recent: List<YosMediaItem>, navController: NavController) {
+    val albums = remember(recent) { recent.filter { !it.album.isNullOrEmpty() }.distinctBy { it.album }.take(SHELF_SIZE) }
+    if (albums.isEmpty()) return
+    ShelfTitle(stringResource(id = R.string.home_recent_albums)) { navController.toUI(UI.LocalAlbums) }
+    LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        items(albums, key = { it.album!! }) { song ->
+            Column(
                 Modifier
-                    .fillMaxWidth()
-                    .padding(top = 6.dp)
-                    .height(40.dp)
-                    .clickable { scope.launch(Dispatchers.IO) { MediaController.prepare(song, queue) } },
-                verticalAlignment = Alignment.CenterVertically
+                    .width(160.dp)
+                    .clickable {
+                        LibraryObject.setTargetAlbumName(song.album!!)
+                        navController.toUI(UI.AlbumInfo)
+                    }
             ) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current).data(song.thumb)
@@ -290,44 +287,13 @@ fun HomeHero(history: List<YosMediaItem>) {
                         .fallback(R.drawable.placeholder_music_default_artwork).build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(YosRoundedCornerShape(5.dp))
+                    modifier = Modifier.size(160.dp).clip(YosRoundedCornerShape(12.dp))
                 )
-                Column(
-                    Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp)
-                ) {
-                    Text(
-                        text = song.title ?: defaultTitle,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = song.artistsName ?: defaultArtistsName,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.alpha(0.5f)
-                    )
-                }
-                Box(
-                    Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(card),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.button_icon_play),
-                        contentDescription = stringResource(id = R.string.normal_button_play),
-                        modifier = Modifier.size(11.dp)
-                    )
-                }
+                Text(song.album!!, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 8.dp))
+                Text(song.artistsName ?: defaultArtistsName, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.alpha(0.6f))
             }
         }
-    }
     }
 }

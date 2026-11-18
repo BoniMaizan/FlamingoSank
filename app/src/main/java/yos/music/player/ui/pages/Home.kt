@@ -91,6 +91,7 @@ fun Home(
             } else item("RecommendCard") {
                 RecommendCard(imageViewModel)
             }
+            if (wide) item("Artists") { HomeArtists(history, navController) }
             if (!wide) item("RecentlyPlayed") {
                 HomeShelf(
                     stringResource(id = R.string.home_recently_played),
@@ -115,7 +116,8 @@ fun Home(
                     }.getOrNull().orEmpty()
                     songs.sortedByDescending { added[it.mediaId] ?: 0L }
                 }
-                HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController, stringResource(id = R.string.home_recently_added_desc))
+                if (wide) HomeAlbums(recent, navController)
+                else HomeShelf(stringResource(id = R.string.home_recently_added), recent, navController, stringResource(id = R.string.home_recently_added_desc))
             }
             item("Favorites") {
                 HomeShelf(

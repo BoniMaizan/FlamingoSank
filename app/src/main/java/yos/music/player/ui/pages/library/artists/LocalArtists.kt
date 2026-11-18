@@ -290,7 +290,7 @@ private fun LazyItemScope.ArtistItem(
     }
 
 @Composable
-private fun ArtistTile(artist: String, modifier: Modifier, onClick: () -> Unit) = Column(
+internal fun ArtistTile(artist: String, modifier: Modifier, onClick: () -> Unit) = Column(
     modifier
         .clip(RoundedCornerShape(12.dp))
         .clickable(onClick = onClick)

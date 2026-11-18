@@ -217,4 +217,7 @@
     <string name="unknown_album">Unknown Album</string>
     <string name="notification_channel_name">Flamingo Media Control</string>
     <string name="notification_channel_desc">Flamingo Media Control Notification Channel</string>
+    <string name="home_resume">Resume</string>
+    <string name="home_your_artists">Your Artists</string>
+    <string name="home_recent_albums">Recent Albums</string>
 </resources>

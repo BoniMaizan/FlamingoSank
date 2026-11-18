@@ -218,4 +218,7 @@
     <string name="unknown_album">Album inconnu</string>
     <string name="notification_channel_name">Contrôle multimédia Flamingo</string>
     <string name="notification_channel_desc">Canal de notification du contrôle multimédia Flamingo</string>
+    <string name="home_resume">Reprendre</string>
+    <string name="home_your_artists">Vos artistes</string>
+    <string name="home_recent_albums">Albums récents</string>
 </resources>
