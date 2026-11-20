@@ -2,6 +2,9 @@
 
 package yos.music.player.ui.pages
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.rounded.DragHandle
@@ -248,6 +251,8 @@ private val WidePaneWidth = 360.dp
 
 // Tablets: top of the right card, level with the cover (22dp above the player column, 20dp above the cover, 7dp inside the image)
 private val WideCardTop = 49.dp
+// tablets: room left under the side pane for the Lyrics / Up next / Info icons
+private val WideIconsSpace = 84.dp
 
 @Composable
 private fun TranslationToggle(
@@ -435,15 +440,6 @@ fun NowPlaying(
 
             println("重组：主功能区")
 
-            if (wide) Box(
-                Modifier
-                    .fillMaxSize()
-                    .then(sideModifier)
-                    .padding(top = WideCardTop, bottom = 24.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.Black.copy(alpha = 0.22f))
-            )
-
             // 歌词
             YosWrapper {
 
@@ -451,13 +447,8 @@ fun NowPlaying(
                     Modifier
                         .fillMaxSize()
                         .then(sideModifier)
-                        // room for the tabs above, and kept inside the dark card
-                        .then(
-                            if (wide) Modifier
-                                .padding(top = WideCardTop + 56.dp, bottom = 24.dp)
-                                .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp))
-                            else Modifier
-                        )
+                        // no card: the lines float on the blurred cover, clear of the icons below
+                        .then(if (wide) Modifier.padding(top = WideCardTop, bottom = WideIconsSpace) else Modifier)
                         .graphicsLayer {
                             compositingStrategy =
                                 CompositingStrategy.ModulateAlpha
@@ -660,7 +651,7 @@ fun NowPlaying(
                         Modifier
                             .fillMaxSize()
                             .then(sideModifier)
-                            .padding(top = WideCardTop + 56.dp)
+                            .padding(top = WideCardTop + 44.dp, bottom = WideIconsSpace)
                     ) {
                         PlayingList(
                             shuffleModeEnabledLambda = { shuffleModeEnabled.value },
@@ -682,52 +673,56 @@ fun NowPlaying(
                         Modifier
                             .fillMaxSize()
                             .then(sideModifier)
-                            .padding(top = WideCardTop + 56.dp, bottom = 24.dp)
+                            .padding(top = WideCardTop, bottom = WideIconsSpace)
                     )
                 }
             }
 
-            // Wide mode: tabs above the side pane to switch between lyrics and the queue
+            // Wide mode, no tabs: translation and shuffle/repeat top right, the three panes as icons bottom right
             if (wide) {
-                Box(
+                Row(
                     Modifier
                         .fillMaxWidth()
                         .then(sideModifier)
-                        .padding(top = WideCardTop + 10.dp),
-                    contentAlignment = Alignment.TopCenter
+                        .padding(top = WideCardTop),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val tabs = listOf(Lyric, PlayingList, NowPlayingPage.Info)
-                    Segmented(
-                        options = listOf(
-                            stringResource(id = R.string.nowplaying_tab_lyrics),
-                            stringResource(id = R.string.nowplaying_tab_up_next),
-                            stringResource(id = R.string.nowplaying_tab_info)
-                        ),
-                        // Album never shows on tablets: count it as the queue
-                        selected = tabs.indexOf(nowPageLambda()).let { if (it < 0) 1 else it },
-                        onSelect = { nowPageOnChanged(tabs[it]) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp, end = 160.dp)
+                    if (nowPageLambda() == Lyric) TranslationToggle(
+                        translationButtonEnabled.value, translation, toggleTranslation
                     )
-                    Row(
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(end = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // translation: only for lyrics, its place is kept so the tabs don't resize
-                        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-                            if (nowPageLambda() == Lyric) TranslationToggle(
-                                translationButtonEnabled.value, translation, toggleTranslation
-                            )
+                    if (nowPageLambda() == PlayingList) QueueModeButtons(
+                        shuffleModeEnabledLambda = { shuffleModeEnabled.value },
+                        shuffleModeOnChanged = { shuffleModeEnabled.value = it },
+                        repeatModeLambda = { repeatMode.intValue },
+                        repeatModeOnChanged = { repeatMode.intValue = it }
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxSize()
+                        .then(sideModifier)
+                        .navigationBarsPadding()
+                        .padding(bottom = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    listOf(
+                        Triple(Lyric, painterResource(id = R.drawable.ic_nowplaying_lyrics), R.string.nowplaying_tab_lyrics),
+                        Triple(PlayingList, painterResource(id = R.drawable.ic_nowplaying_queue), R.string.nowplaying_tab_up_next),
+                        Triple(NowPlayingPage.Info, rememberVectorPainter(Icons.Outlined.Info), R.string.nowplaying_tab_info)
+                    ).forEach { (page, icon, label) ->
+                        val on = nowPageLambda() == page
+                        Box(
+                            Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (on) Color.White.copy(alpha = 0.22f) else Color.Transparent)
+                                .clickable { nowPageOnChanged(page) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(icon, contentDescription = stringResource(id = label), modifier = Modifier.size(26.dp).alpha(if (on) 1f else 0.6f))
                         }
-                        QueueModeButtons(
-                            shuffleModeEnabledLambda = { shuffleModeEnabled.value },
-                            shuffleModeOnChanged = { shuffleModeEnabled.value = it },
-                            repeatModeLambda = { repeatMode.intValue },
-                            repeatModeOnChanged = { repeatMode.intValue = it }
-                        )
                     }
                 }
             }
